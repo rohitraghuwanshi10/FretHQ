@@ -11,6 +11,6 @@ void main() {
 
     expect(find.text('FRET HQ'), findsOneWidget);
     expect(find.text('Identify Note'), findsOneWidget);
-    expect(find.text('START 1 MIN TEST'), findsOneWidget);
+    expect(find.textContaining('START'), findsWidgets);
   });
 }

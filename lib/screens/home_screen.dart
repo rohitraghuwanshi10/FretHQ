@@ -220,7 +220,244 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
+
+              // Global Practice Preferences Card
+              const Text(
+                'PRACTICE PREFERENCES',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white54,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E28),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Note Scope: Easy (Main 7 notes) vs Full (All 12 notes)
+                    const Text(
+                      'NOTE SCOPE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _includeAccidentals = false;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: !_includeAccidentals ? Colors.amber : const Color(0xFF141220),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: !_includeAccidentals ? Colors.amber : Colors.white12,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    'Easy Mode',
+                                    style: TextStyle(
+                                      color: !_includeAccidentals ? Colors.black : Colors.grey.shade300,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '7 Naturals (C,D,E,F,G,A,B)',
+                                    style: TextStyle(
+                                      color: !_includeAccidentals ? Colors.black87 : Colors.grey.shade600,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _includeAccidentals = true;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _includeAccidentals ? Colors.amber : const Color(0xFF141220),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _includeAccidentals ? Colors.amber : Colors.white12,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    'Full Mode',
+                                    style: TextStyle(
+                                      color: _includeAccidentals ? Colors.black : Colors.grey.shade300,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'All 12 Chromatic Notes',
+                                    style: TextStyle(
+                                      color: _includeAccidentals ? Colors.black87 : Colors.grey.shade600,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Adaptive Training Switch Toggle Card
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF141220),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: _isWeakSpotFocus ? Colors.redAccent.withValues(alpha: 0.5) : Colors.white12,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.center_focus_strong,
+                            color: _isWeakSpotFocus ? Colors.redAccent : Colors.grey.shade500,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Adaptive Weak Spot Focus',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: _isWeakSpotFocus ? Colors.redAccent : Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Target frets you miss most often based on history',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _isWeakSpotFocus,
+                            activeColor: Colors.redAccent,
+                            onChanged: (val) {
+                              setState(() {
+                                _isWeakSpotFocus = val;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Selectable Duration Chips
+                    const Text(
+                      'TEST DURATION',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: _durationOptions.map((mins) {
+                        final isSelected = _selectedDurationMinutes == mins;
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _selectedDurationMinutes = mins;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? Colors.amber
+                                      : const Color(0xFF141220),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? Colors.amber
+                                        : Colors.white12,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${mins}m',
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.black : Colors.grey.shade300,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 28),
 
               const Text(
                 'TRAINING GAMES',
@@ -276,16 +513,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           Row(
                             children: [
-                              const Icon(Icons.timer_outlined, color: Colors.amberAccent, size: 18),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${_selectedDurationMinutes} Min Test',
-                                style: const TextStyle(
-                                  color: Colors.amberAccent,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
+                              _buildActiveBadge(
+                                _includeAccidentals ? 'Full Mode' : 'Easy Mode',
+                                _includeAccidentals ? Colors.amber : Colors.greenAccent,
                               ),
+                              if (_isWeakSpotFocus) ...[
+                                const SizedBox(width: 6),
+                                _buildActiveBadge('Adaptive', Colors.redAccent),
+                              ],
                             ],
                           ),
                         ],
@@ -309,218 +544,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Note Scope: Easy (Main 7 notes) vs Full (All 12 notes)
-                      const Text(
-                        'NOTE SCOPE',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _includeAccidentals = false;
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 150),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: !_includeAccidentals ? Colors.amber : const Color(0xFF171424),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: !_includeAccidentals ? Colors.amber : Colors.white12,
-                                  ),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'Easy Mode',
-                                      style: TextStyle(
-                                        color: !_includeAccidentals ? Colors.black : Colors.grey.shade300,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Main 7 Notes (C,D,E,F,G,A,B)',
-                                      style: TextStyle(
-                                        color: !_includeAccidentals ? Colors.black87 : Colors.grey.shade600,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _includeAccidentals = true;
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 150),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: _includeAccidentals ? Colors.amber : const Color(0xFF171424),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: _includeAccidentals ? Colors.amber : Colors.white12,
-                                  ),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'Full Mode',
-                                      style: TextStyle(
-                                        color: _includeAccidentals ? Colors.black : Colors.grey.shade300,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'All 12 Notes (Sharps & Flats)',
-                                      style: TextStyle(
-                                        color: _includeAccidentals ? Colors.black87 : Colors.grey.shade600,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Adaptive Training Switch Toggle Card
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF171424),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: _isWeakSpotFocus ? Colors.redAccent.withValues(alpha: 0.5) : Colors.white12,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.center_focus_strong,
-                              color: _isWeakSpotFocus ? Colors.redAccent : Colors.grey.shade500,
-                              size: 22,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Adaptive Weak Spot Focus',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: _isWeakSpotFocus ? Colors.redAccent : Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Target frets you miss most often based on history',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey.shade400,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Switch(
-                              value: _isWeakSpotFocus,
-                              activeColor: Colors.redAccent,
-                              onChanged: (val) {
-                                setState(() {
-                                  _isWeakSpotFocus = val;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Selectable Duration Chips
-                      const Text(
-                        'TEST DURATION',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: _durationOptions.map((mins) {
-                          final isSelected = _selectedDurationMinutes == mins;
-                          return Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedDurationMinutes = mins;
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(8),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 150),
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? Colors.amber
-                                        : const Color(0xFF171424),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? Colors.amber
-                                          : Colors.white12,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '${mins}m',
-                                      style: TextStyle(
-                                        color: isSelected ? Colors.black : Colors.grey.shade300,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                      const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -540,9 +563,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               const Icon(Icons.play_arrow, size: 22),
                               const SizedBox(width: 6),
                               Text(
-                                'START ${_selectedDurationMinutes} MIN TEST',
+                                'START IDENTIFY NOTE TEST (${_selectedDurationMinutes}M)',
                                 style: const TextStyle(
-                                  fontSize: 15,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.5,
                                 ),
@@ -584,45 +607,45 @@ class _HomeScreenState extends State<HomeScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.cyanAccent.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'GAME 2',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.cyanAccent,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              const Text(
-                                'Find Fret Location',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
                           Container(
-                            padding: const EdgeInsets.all(6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.cyanAccent.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Icon(Icons.touch_app, color: Colors.cyanAccent, size: 18),
+                            child: const Text(
+                              'GAME 2',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.cyanAccent,
+                              ),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              _buildActiveBadge(
+                                _includeAccidentals ? 'Full Mode' : 'Easy Mode',
+                                _includeAccidentals ? Colors.amber : Colors.greenAccent,
+                              ),
+                              if (_isWeakSpotFocus) ...[
+                                const SizedBox(width: 6),
+                                _buildActiveBadge('Adaptive', Colors.redAccent),
+                              ],
+                            ],
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Find Fret Location',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       Text(
                         'Given a target note name, tap its exact string and fret position on the interactive guitar neck.',
                         style: TextStyle(
@@ -783,6 +806,25 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Icon(Icons.lock_clock, color: Colors.grey.shade700, size: 24),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActiveBadge(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
       ),
     );
   }
