@@ -4,11 +4,13 @@ import '../models/note.dart';
 class NoteKeypadWidget extends StatelessWidget {
   final ValueChanged<Note> onNoteSelected;
   final bool isEnabled;
+  final bool allowAccidentals;
 
   const NoteKeypadWidget({
     super.key,
     required this.onNoteSelected,
     this.isEnabled = true,
+    this.allowAccidentals = true,
   });
 
   @override
@@ -28,27 +30,28 @@ class NoteKeypadWidget extends StatelessWidget {
       itemBuilder: (context, index) {
         final note = notes[index];
         final isAccidental = note.id.contains('#');
+        final isButtonActive = isEnabled && (!isAccidental || allowAccidentals);
 
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: isEnabled ? () => onNoteSelected(note) : null,
+            onTap: isButtonActive ? () => onNoteSelected(note) : null,
             borderRadius: BorderRadius.circular(10),
             splashColor: Colors.amberAccent.withValues(alpha: 0.3),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               decoration: BoxDecoration(
-                color: isEnabled
+                color: isButtonActive
                     ? (isAccidental ? const Color(0xFF242230) : const Color(0xFF323042))
-                    : Colors.grey.shade900.withValues(alpha: 0.4),
+                    : Colors.grey.shade900.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: isEnabled
+                  color: isButtonActive
                       ? (isAccidental ? Colors.deepPurple.shade300.withValues(alpha: 0.5) : Colors.amber.withValues(alpha: 0.4))
-                      : Colors.grey.shade800,
+                      : Colors.white10,
                   width: 1.2,
                 ),
-                boxShadow: isEnabled
+                boxShadow: isButtonActive
                     ? [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.3),
@@ -69,9 +72,9 @@ class NoteKeypadWidget extends StatelessWidget {
                       style: TextStyle(
                         fontSize: isAccidental ? 13 : 16,
                         fontWeight: FontWeight.bold,
-                        color: isEnabled
+                        color: isButtonActive
                             ? (isAccidental ? Colors.purpleAccent.shade100 : Colors.amber.shade200)
-                            : Colors.grey.shade600,
+                            : Colors.white24,
                       ),
                     ),
                   ),

@@ -9,10 +9,12 @@ import 'results_screen.dart';
 
 class IdentifyNoteScreen extends StatefulWidget {
   final int durationSeconds;
+  final bool includeAccidentals;
 
   const IdentifyNoteScreen({
     super.key,
     this.durationSeconds = 60,
+    this.includeAccidentals = true,
   });
 
   @override
@@ -29,12 +31,18 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
   @override
   void initState() {
     super.initState();
-    _session = GameSession(durationSeconds: widget.durationSeconds);
+    _session = GameSession(
+      durationSeconds: widget.durationSeconds,
+      includeAccidentals: widget.includeAccidentals,
+    );
     _startTest();
   }
 
   void _startTest() {
-    _session = GameSession(durationSeconds: widget.durationSeconds);
+    _session = GameSession(
+      durationSeconds: widget.durationSeconds,
+      includeAccidentals: widget.includeAccidentals,
+    );
     _session.start();
     _isNewHighScore = false;
     _timer?.cancel();
@@ -126,8 +134,8 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Identify Note - ${durationMins}m Speed Test',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          'Identify Note - ${durationMins}m (${widget.includeAccidentals ? "Full" : "Easy Mode"})',
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         centerTitle: true,
       ),
@@ -257,10 +265,11 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
 
               const SizedBox(height: 16),
 
-              // Note Keypad Answer Grid (12 Notes)
+              // Note Keypad Answer Grid
               NoteKeypadWidget(
                 onNoteSelected: _handleNoteInput,
                 isEnabled: _session.status == GameStatus.playing,
+                allowAccidentals: widget.includeAccidentals,
               ),
 
               const SizedBox(height: 12),

@@ -15,6 +15,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _totalGames = 0;
   bool _isLoadingStats = true;
   int _selectedDurationMinutes = 1; // Default 1 min
+  bool _includeAccidentals = false; // Default Easy Mode (Natural notes only)
 
   final List<int> _durationOptions = [1, 2, 3, 5, 10];
 
@@ -43,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(
         builder: (context) => IdentifyNoteScreen(
           durationSeconds: _selectedDurationMinutes * 60,
+          includeAccidentals: _includeAccidentals,
         ),
       ),
     );
@@ -232,6 +234,106 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.grey.shade400,
                           height: 1.3,
                         ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Selectable Mode: Easy (Main 7 notes) vs Full (All 12 notes)
+                      const Text(
+                        'NOTE MODE',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _includeAccidentals = false;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: !_includeAccidentals ? Colors.amber : const Color(0xFF171424),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: !_includeAccidentals ? Colors.amber : Colors.white12,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Easy Mode',
+                                      style: TextStyle(
+                                        color: !_includeAccidentals ? Colors.black : Colors.grey.shade300,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Main 7 Notes (C,D,E,F,G,A,B)',
+                                      style: TextStyle(
+                                        color: !_includeAccidentals ? Colors.black87 : Colors.grey.shade600,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _includeAccidentals = true;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _includeAccidentals ? Colors.amber : const Color(0xFF171424),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: _includeAccidentals ? Colors.amber : Colors.white12,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Full Mode',
+                                      style: TextStyle(
+                                        color: _includeAccidentals ? Colors.black : Colors.grey.shade300,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'All 12 Notes (Sharps & Flats)',
+                                      style: TextStyle(
+                                        color: _includeAccidentals ? Colors.black87 : Colors.grey.shade600,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
 

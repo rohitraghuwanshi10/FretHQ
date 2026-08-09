@@ -17,6 +17,7 @@ class AnswerAttempt {
 
 class GameSession {
   final int durationSeconds;
+  final bool includeAccidentals;
   int secondsRemaining;
   int correctCount;
   int incorrectCount;
@@ -31,6 +32,7 @@ class GameSession {
 
   GameSession({
     this.durationSeconds = 60,
+    this.includeAccidentals = true,
     this.minFret = 0,
     this.maxFret = 12,
   })  : secondsRemaining = durationSeconds,
@@ -65,19 +67,27 @@ class GameSession {
     final rand = Random();
     int nextString;
     int nextFret;
+    TargetPosition candidate;
 
-    // Pick a random position, avoiding repeating the exact same position consecutively if possible
+    int attempts = 0;
     do {
       nextString = rand.nextInt(6) + 1; // 1 to 6
       nextFret = minFret + rand.nextInt(maxFret - minFret + 1); // minFret to maxFret
-    } while (currentPosition != null &&
-        currentPosition!.stringNumber == nextString &&
-        currentPosition!.fretNumber == nextFret);
-
-    currentPosition = TargetPosition(
-      stringNumber: nextString,
-      fretNumber: nextFret,
+      candidate = TargetPosition(
+        stringNumber: nextString,
+        fretNumber: nextFret,
+      );
+      attempts++;
+    } while (
+      attempts < 300 && (
+        (currentPosition != null &&
+            currentPosition!.stringNumber == nextString &&
+            currentPosition!.fretNumber == nextFret) ||
+        (!includeAccidentals && !candidate.targetNote.isNatural)
+      )
     );
+
+    currentPosition = candidate;
   }
 
   /// Processes user note answer and returns true if correct

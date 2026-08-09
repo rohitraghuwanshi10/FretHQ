@@ -47,6 +47,9 @@ class Note {
     return chromaticNotes[index];
   }
 
+  /// Returns true if note is one of the 7 natural notes (C, D, E, F, G, A, B)
+  bool get isNatural => !id.contains('#');
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

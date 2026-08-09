@@ -126,5 +126,32 @@ void main() {
       expect(session.secondsRemaining, 0);
       expect(session.status, GameStatus.finished);
     });
+
+    test('Easy Mode (includeAccidentals = false) generates only natural target notes', () {
+      final session = GameSession(durationSeconds: 60, includeAccidentals: false);
+      session.start();
+
+      for (int i = 0; i < 50; i++) {
+        final target = session.currentPosition!.targetNote;
+        expect(target.isNatural, isTrue, reason: 'Expected natural note (C,D,E,F,G,A,B), got ${target.id}');
+        session.answer(target);
+      }
+    });
+
+    test('Full Mode (includeAccidentals = true) generates accidental notes', () {
+      final session = GameSession(durationSeconds: 60, includeAccidentals: true);
+      session.start();
+
+      bool foundAccidental = false;
+      for (int i = 0; i < 100; i++) {
+        final target = session.currentPosition!.targetNote;
+        if (!target.isNatural) {
+          foundAccidental = true;
+          break;
+        }
+        session.answer(target);
+      }
+      expect(foundAccidental, isTrue, reason: 'Expected to find at least one sharp/flat note in 100 prompts in Full Mode');
+    });
   });
 }
