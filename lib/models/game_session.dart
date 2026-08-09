@@ -18,6 +18,8 @@ class AnswerAttempt {
 class GameSession {
   final int durationSeconds;
   final bool includeAccidentals;
+  final bool isWeakSpotFocus;
+  final List<TargetPosition>? weakTargetPositions;
   int secondsRemaining;
   int correctCount;
   int incorrectCount;
@@ -33,6 +35,8 @@ class GameSession {
   GameSession({
     this.durationSeconds = 60,
     this.includeAccidentals = true,
+    this.isWeakSpotFocus = false,
+    this.weakTargetPositions,
     this.minFret = 0,
     this.maxFret = 12,
   })  : secondsRemaining = durationSeconds,
@@ -71,8 +75,18 @@ class GameSession {
 
     int attempts = 0;
     do {
-      nextString = rand.nextInt(6) + 1; // 1 to 6
-      nextFret = minFret + rand.nextInt(maxFret - minFret + 1); // minFret to maxFret
+      if (isWeakSpotFocus &&
+          weakTargetPositions != null &&
+          weakTargetPositions!.isNotEmpty &&
+          rand.nextDouble() < 0.70) {
+        final weakPos = weakTargetPositions![rand.nextInt(weakTargetPositions!.length)];
+        nextString = weakPos.stringNumber;
+        nextFret = weakPos.fretNumber;
+      } else {
+        nextString = rand.nextInt(6) + 1; // 1 to 6
+        nextFret = minFret + rand.nextInt(maxFret - minFret + 1); // minFret to maxFret
+      }
+
       candidate = TargetPosition(
         stringNumber: nextString,
         fretNumber: nextFret,

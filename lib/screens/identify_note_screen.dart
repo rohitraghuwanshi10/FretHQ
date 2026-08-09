@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/game_session.dart';
 import '../models/note.dart';
 import '../services/high_score_service.dart';
+import '../services/database_helper.dart';
 import '../widgets/fretboard_widget.dart';
 import '../widgets/note_keypad_widget.dart';
 import 'results_screen.dart';
@@ -10,11 +11,15 @@ import 'results_screen.dart';
 class IdentifyNoteScreen extends StatefulWidget {
   final int durationSeconds;
   final bool includeAccidentals;
+  final bool isWeakSpotFocus;
+  final List<TargetPosition>? weakTargetPositions;
 
   const IdentifyNoteScreen({
     super.key,
     this.durationSeconds = 60,
     this.includeAccidentals = true,
+    this.isWeakSpotFocus = false,
+    this.weakTargetPositions,
   });
 
   @override
@@ -34,6 +39,8 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
     _session = GameSession(
       durationSeconds: widget.durationSeconds,
       includeAccidentals: widget.includeAccidentals,
+      isWeakSpotFocus: widget.isWeakSpotFocus,
+      weakTargetPositions: widget.weakTargetPositions,
     );
     _startTest();
   }
@@ -42,6 +49,8 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
     _session = GameSession(
       durationSeconds: widget.durationSeconds,
       includeAccidentals: widget.includeAccidentals,
+      isWeakSpotFocus: widget.isWeakSpotFocus,
+      weakTargetPositions: widget.weakTargetPositions,
     );
     _session.start();
     _isNewHighScore = false;
@@ -59,6 +68,13 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
   }
 
   Future<void> _onTestFinished() async {
+    final modeName = widget.isWeakSpotFocus
+        ? 'weak_spot'
+        : (widget.includeAccidentals ? 'full' : 'easy');
+
+    // Save session and detailed attempt logs to database
+    await DatabaseHelper.instance.saveGameSession(_session, modeName);
+
     final isHigh = await HighScoreService.saveSession(
       score: _session.correctCount,
       accuracy: _session.accuracyPercentage,
@@ -134,7 +150,7 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Identify Note - ${durationMins}m (${widget.includeAccidentals ? "Full" : "Easy Mode"})',
+          'Identify Note - ${durationMins}m (${widget.isWeakSpotFocus ? "Weak Spots" : (widget.includeAccidentals ? "Full" : "Easy Mode")})',
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         centerTitle: true,

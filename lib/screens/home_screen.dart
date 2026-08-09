@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/high_score_service.dart';
+import '../services/database_helper.dart';
+import '../models/note.dart';
 import 'identify_note_screen.dart';
+import 'analytics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,7 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _totalGames = 0;
   bool _isLoadingStats = true;
   int _selectedDurationMinutes = 1; // Default 1 min
-  bool _includeAccidentals = false; // Default Easy Mode (Natural notes only)
+  String _selectedMode = 'easy'; // 'easy', 'full', 'weak_spot'
 
   final List<int> _durationOptions = [1, 2, 3, 5, 10];
 
@@ -40,11 +43,25 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _navigateToGame1() async {
+    final isWeakSpot = _selectedMode == 'weak_spot';
+    final includeAccidentals = _selectedMode == 'full';
+    List<TargetPosition>? weakTargetPositions;
+
+    if (isWeakSpot) {
+      final weakList = await DatabaseHelper.instance.getWeakestPositions(limit: 10);
+      weakTargetPositions = weakList
+          .map((w) => TargetPosition(stringNumber: w.stringNumber, fretNumber: w.fretNumber))
+          .toList();
+    }
+
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => IdentifyNoteScreen(
           durationSeconds: _selectedDurationMinutes * 60,
-          includeAccidentals: _includeAccidentals,
+          includeAccidentals: includeAccidentals,
+          isWeakSpotFocus: isWeakSpot,
+          weakTargetPositions: weakTargetPositions,
         ),
       ),
     );
@@ -135,12 +152,44 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 16),
                     _isLoadingStats
                         ? const Center(child: CircularProgressIndicator())
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        : Column(
                             children: [
-                              _buildStatColumn('Best Score', '$_highScore', 'Notes/min'),
-                              _buildStatColumn('Accuracy', '${_bestAccuracy.toStringAsFixed(1)}%', 'Best %'),
-                              _buildStatColumn('Tests Run', '$_totalGames', 'Completed'),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  _buildStatColumn('Best Score', '$_highScore', 'Notes/min'),
+                                  _buildStatColumn('Accuracy', '${_bestAccuracy.toStringAsFixed(1)}%', 'Best %'),
+                                  _buildStatColumn('Tests Run', '$_totalGames', 'Completed'),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.analytics_outlined, color: Colors.cyanAccent, size: 16),
+                                  label: const Text(
+                                    'VIEW PERFORMANCE & WEAK SPOTS',
+                                    style: TextStyle(
+                                      color: Colors.cyanAccent,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: Colors.cyanAccent.withValues(alpha: 0.4)),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                   ],
@@ -237,9 +286,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Selectable Mode: Easy (Main 7 notes) vs Full (All 12 notes)
+                      // Selectable Mode: Easy vs Full vs Weak Spot Focus
                       const Text(
-                        'NOTE MODE',
+                        'PRACTICE MODE',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -250,89 +299,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _includeAccidentals = false;
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 150),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: !_includeAccidentals ? Colors.amber : const Color(0xFF171424),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: !_includeAccidentals ? Colors.amber : Colors.white12,
-                                  ),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'Easy Mode',
-                                      style: TextStyle(
-                                        color: !_includeAccidentals ? Colors.black : Colors.grey.shade300,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Main 7 Notes (C,D,E,F,G,A,B)',
-                                      style: TextStyle(
-                                        color: !_includeAccidentals ? Colors.black87 : Colors.grey.shade600,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _includeAccidentals = true;
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 150),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: _includeAccidentals ? Colors.amber : const Color(0xFF171424),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: _includeAccidentals ? Colors.amber : Colors.white12,
-                                  ),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'Full Mode',
-                                      style: TextStyle(
-                                        color: _includeAccidentals ? Colors.black : Colors.grey.shade300,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'All 12 Notes (Sharps & Flats)',
-                                      style: TextStyle(
-                                        color: _includeAccidentals ? Colors.black87 : Colors.grey.shade600,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
+                          _buildModeChip('easy', 'Easy', '7 Naturals', Colors.greenAccent),
+                          const SizedBox(width: 6),
+                          _buildModeChip('full', 'Full', 'All 12 Notes', Colors.amber),
+                          const SizedBox(width: 6),
+                          _buildModeChip('weak_spot', 'Weak Spots', 'Adaptive', Colors.redAccent),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -553,6 +524,52 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Icon(Icons.lock_clock, color: Colors.grey.shade700, size: 24),
         ],
+      ),
+    );
+  }
+
+  Widget _buildModeChip(String modeKey, String title, String sub, Color activeColor) {
+    final isSelected = _selectedMode == modeKey;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedMode = modeKey;
+          });
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? activeColor : const Color(0xFF171424),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? activeColor : Colors.white12,
+            ),
+          ),
+          child: Column(
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: isSelected ? Colors.black : Colors.grey.shade300,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                sub,
+                style: TextStyle(
+                  color: isSelected ? Colors.black87 : Colors.grey.shade600,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
