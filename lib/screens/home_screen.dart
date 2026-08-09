@@ -18,7 +18,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _totalGames = 0;
   bool _isLoadingStats = true;
   int _selectedDurationMinutes = 1; // Default 1 min
-  String _selectedMode = 'easy'; // 'easy', 'full', 'weak_spot'
+  bool _includeAccidentals = false; // Default Easy Mode (Natural notes only)
+  bool _isWeakSpotFocus = false; // Adaptive Weak Spot focus toggle
 
   final List<int> _durationOptions = [1, 2, 3, 5, 10];
 
@@ -43,11 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _navigateToGame1() async {
-    final isWeakSpot = _selectedMode == 'weak_spot';
-    final includeAccidentals = _selectedMode == 'full';
     List<TargetPosition>? weakTargetPositions;
 
-    if (isWeakSpot) {
+    if (_isWeakSpotFocus) {
       final weakList = await DatabaseHelper.instance.getWeakestPositions(limit: 10);
       weakTargetPositions = weakList
           .map((w) => TargetPosition(stringNumber: w.stringNumber, fretNumber: w.fretNumber))
@@ -59,8 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(
         builder: (context) => IdentifyNoteScreen(
           durationSeconds: _selectedDurationMinutes * 60,
-          includeAccidentals: includeAccidentals,
-          isWeakSpotFocus: isWeakSpot,
+          includeAccidentals: _includeAccidentals,
+          isWeakSpotFocus: _isWeakSpotFocus,
           weakTargetPositions: weakTargetPositions,
         ),
       ),
@@ -286,9 +285,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Selectable Mode: Easy vs Full vs Weak Spot Focus
+                      // Note Scope: Easy (Main 7 notes) vs Full (All 12 notes)
                       const Text(
-                        'PRACTICE MODE',
+                        'NOTE SCOPE',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -299,12 +298,145 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          _buildModeChip('easy', 'Easy', '7 Naturals', Colors.greenAccent),
-                          const SizedBox(width: 6),
-                          _buildModeChip('full', 'Full', 'All 12 Notes', Colors.amber),
-                          const SizedBox(width: 6),
-                          _buildModeChip('weak_spot', 'Weak Spots', 'Adaptive', Colors.redAccent),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _includeAccidentals = false;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: !_includeAccidentals ? Colors.amber : const Color(0xFF171424),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: !_includeAccidentals ? Colors.amber : Colors.white12,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Easy Mode',
+                                      style: TextStyle(
+                                        color: !_includeAccidentals ? Colors.black : Colors.grey.shade300,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Main 7 Notes (C,D,E,F,G,A,B)',
+                                      style: TextStyle(
+                                        color: !_includeAccidentals ? Colors.black87 : Colors.grey.shade600,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _includeAccidentals = true;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _includeAccidentals ? Colors.amber : const Color(0xFF171424),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: _includeAccidentals ? Colors.amber : Colors.white12,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Full Mode',
+                                      style: TextStyle(
+                                        color: _includeAccidentals ? Colors.black : Colors.grey.shade300,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'All 12 Notes (Sharps & Flats)',
+                                      style: TextStyle(
+                                        color: _includeAccidentals ? Colors.black87 : Colors.grey.shade600,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Adaptive Training Switch Toggle Card
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF171424),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: _isWeakSpotFocus ? Colors.redAccent.withValues(alpha: 0.5) : Colors.white12,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.center_focus_strong,
+                              color: _isWeakSpotFocus ? Colors.redAccent : Colors.grey.shade500,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Adaptive Weak Spot Focus',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: _isWeakSpotFocus ? Colors.redAccent : Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Target frets you miss most often based on history',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: _isWeakSpotFocus,
+                              activeColor: Colors.redAccent,
+                              onChanged: (val) {
+                                setState(() {
+                                  _isWeakSpotFocus = val;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
 
@@ -524,52 +656,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Icon(Icons.lock_clock, color: Colors.grey.shade700, size: 24),
         ],
-      ),
-    );
-  }
-
-  Widget _buildModeChip(String modeKey, String title, String sub, Color activeColor) {
-    final isSelected = _selectedMode == modeKey;
-
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedMode = modeKey;
-          });
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? activeColor : const Color(0xFF171424),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? activeColor : Colors.white12,
-            ),
-          ),
-          child: Column(
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: isSelected ? Colors.black : Colors.grey.shade300,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                sub,
-                style: TextStyle(
-                  color: isSelected ? Colors.black87 : Colors.grey.shade600,
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -93,5 +93,26 @@ void main() {
       // 70% targeting probability means hitCount should be high (>= 15 out of 50)
       expect(hitCount, greaterThanOrEqualTo(15));
     });
+
+    test('Easy Mode combined with Weak Spot Focus generates only natural target notes', () {
+      final weakPos = [
+        TargetPosition(stringNumber: 6, fretNumber: 1), // F note (Natural)
+        TargetPosition(stringNumber: 6, fretNumber: 2), // F# note (Accidental)
+      ];
+
+      final session = GameSession(
+        durationSeconds: 60,
+        includeAccidentals: false, // Easy mode
+        isWeakSpotFocus: true,
+        weakTargetPositions: weakPos,
+      );
+      session.start();
+
+      for (int i = 0; i < 50; i++) {
+        final target = session.currentPosition!.targetNote;
+        expect(target.isNatural, isTrue, reason: 'Expected natural note in Easy Mode, got ${target.id}');
+        session.answer(target);
+      }
+    });
   });
 }

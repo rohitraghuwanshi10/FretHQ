@@ -73,13 +73,20 @@ class GameSession {
     int nextFret;
     TargetPosition candidate;
 
+    final availableWeakPositions = weakTargetPositions?.where((pos) {
+      if (!includeAccidentals && !pos.targetNote.isNatural) {
+        return false;
+      }
+      return true;
+    }).toList();
+
     int attempts = 0;
     do {
       if (isWeakSpotFocus &&
-          weakTargetPositions != null &&
-          weakTargetPositions!.isNotEmpty &&
+          availableWeakPositions != null &&
+          availableWeakPositions.isNotEmpty &&
           rand.nextDouble() < 0.70) {
-        final weakPos = weakTargetPositions![rand.nextInt(weakTargetPositions!.length)];
+        final weakPos = availableWeakPositions[rand.nextInt(availableWeakPositions.length)];
         nextString = weakPos.stringNumber;
         nextFret = weakPos.fretNumber;
       } else {
