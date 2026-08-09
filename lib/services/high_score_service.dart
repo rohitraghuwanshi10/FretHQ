@@ -1,23 +1,19 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HighScoreService {
-  static const String _keyHighScore = 'game1_high_score';
-  static const String _keyBestAccuracy = 'game1_best_accuracy';
-  static const String _keyTotalGames = 'game1_total_games';
-
-  static Future<int> getHighScore() async {
+  static Future<int> getHighScore({String gameKey = 'game1'}) async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_keyHighScore) ?? 0;
+    return prefs.getInt('${gameKey}_high_score') ?? 0;
   }
 
-  static Future<double> getBestAccuracy() async {
+  static Future<double> getBestAccuracy({String gameKey = 'game1'}) async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_keyBestAccuracy) ?? 0.0;
+    return prefs.getDouble('${gameKey}_best_accuracy') ?? 0.0;
   }
 
-  static Future<int> getTotalGamesPlayed() async {
+  static Future<int> getTotalGamesPlayed({String gameKey = 'game1'}) async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_keyTotalGames) ?? 0;
+    return prefs.getInt('${gameKey}_total_games') ?? 0;
   }
 
   /// Saves the game session results if it's a new high score
@@ -25,20 +21,25 @@ class HighScoreService {
   static Future<bool> saveSession({
     required int score,
     required double accuracy,
+    String gameKey = 'game1',
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final currentHigh = prefs.getInt(_keyHighScore) ?? 0;
-    final totalGames = prefs.getInt(_keyTotalGames) ?? 0;
+    final keyHigh = '${gameKey}_high_score';
+    final keyAcc = '${gameKey}_best_accuracy';
+    final keyTotal = '${gameKey}_total_games';
 
-    await prefs.setInt(_keyTotalGames, totalGames + 1);
+    final currentHigh = prefs.getInt(keyHigh) ?? 0;
+    final totalGames = prefs.getInt(keyTotal) ?? 0;
 
-    final currentBestAcc = prefs.getDouble(_keyBestAccuracy) ?? 0.0;
+    await prefs.setInt(keyTotal, totalGames + 1);
+
+    final currentBestAcc = prefs.getDouble(keyAcc) ?? 0.0;
     if (accuracy > currentBestAcc) {
-      await prefs.setDouble(_keyBestAccuracy, accuracy);
+      await prefs.setDouble(keyAcc, accuracy);
     }
 
     if (score > currentHigh) {
-      await prefs.setInt(_keyHighScore, score);
+      await prefs.setInt(keyHigh, score);
       return true;
     }
     return false;

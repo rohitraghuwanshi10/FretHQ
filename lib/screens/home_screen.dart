@@ -3,6 +3,7 @@ import '../services/high_score_service.dart';
 import '../services/database_helper.dart';
 import '../models/note.dart';
 import 'identify_note_screen.dart';
+import 'find_fret_screen.dart';
 import 'analytics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -57,6 +58,30 @@ class _HomeScreenState extends State<HomeScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => IdentifyNoteScreen(
+          durationSeconds: _selectedDurationMinutes * 60,
+          includeAccidentals: _includeAccidentals,
+          isWeakSpotFocus: _isWeakSpotFocus,
+          weakTargetPositions: weakTargetPositions,
+        ),
+      ),
+    );
+    _loadStats(); // Refresh stats when returning
+  }
+
+  void _navigateToGame2() async {
+    List<TargetPosition>? weakTargetPositions;
+
+    if (_isWeakSpotFocus) {
+      final weakList = await DatabaseHelper.instance.getWeakestPositions(limit: 10);
+      weakTargetPositions = weakList
+          .map((w) => TargetPosition(stringNumber: w.stringNumber, fretNumber: w.fretNumber))
+          .toList();
+    }
+
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FindFretScreen(
           durationSeconds: _selectedDurationMinutes * 60,
           includeAccidentals: _includeAccidentals,
           isWeakSpotFocus: _isWeakSpotFocus,
@@ -533,11 +558,113 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 16),
 
-              // Game 2 Placeholder (Find Fret Note)
-              _buildComingSoonCard(
-                gameNumber: 'GAME 2',
-                title: 'Find Fret Location',
-                description: 'Given a note name (e.g. C#), tap its exact location on the 6-string fretboard.',
+              // Game 2 Active Training Card (Find Fret Location)
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1E1E28), Color(0xFF151420)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.cyanAccent.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'GAME 2',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.cyanAccent,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              const Text(
+                                'Find Fret Location',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.cyanAccent.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.touch_app, color: Colors.cyanAccent, size: 18),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Given a target note name, tap its exact string and fret position on the interactive guitar neck.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade400,
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _navigateToGame2,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.cyanAccent,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 3,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.touch_app, size: 20),
+                              const SizedBox(width: 6),
+                              Text(
+                                'START FIND FRET TEST (${_selectedDurationMinutes}M)',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
 
               const SizedBox(height: 16),
