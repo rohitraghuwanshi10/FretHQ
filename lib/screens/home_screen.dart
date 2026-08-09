@@ -5,6 +5,7 @@ import '../models/note.dart';
 import 'identify_note_screen.dart';
 import 'find_fret_screen.dart';
 import 'analytics_screen.dart';
+import 'tuner_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -216,6 +217,76 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Guitar Tools & Utilities Card (Tuner & Intonation Checker)
+              const Text(
+                'GUITAR TOOLS & UTILITIES',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white54,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1E1E28), Color(0xFF161424)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (context) => const TunerScreen(initialTabIndex: 0)),
+                          );
+                        },
+                        icon: const Icon(Icons.tune, color: Colors.amber, size: 18),
+                        label: const Text(
+                          'Guitar Tuner',
+                          style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.amber.withValues(alpha: 0.4)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (context) => const TunerScreen(initialTabIndex: 1)),
+                          );
+                        },
+                        icon: const Icon(Icons.build_circle_outlined, color: Colors.cyanAccent, size: 18),
+                        label: const Text(
+                          'Intonation Checker',
+                          style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.cyanAccent.withValues(alpha: 0.4)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
