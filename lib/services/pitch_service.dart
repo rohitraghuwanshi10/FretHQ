@@ -126,7 +126,7 @@ class PitchService {
 
     try {
       final result = await _pitchDetector.getPitchFromIntBuffer(buffer);
-      if (result.pitched && result.pitch > 40 && result.pitch < 1000) {
+      if ((result.pitched || result.probability > 0.55) && result.pitch > 40 && result.pitch < 1000) {
         final tunerNote = TunerNote.fromFrequency(result.pitch);
         _pitchController.add(tunerNote);
       }

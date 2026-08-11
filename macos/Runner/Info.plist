@@ -28,5 +28,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>FretHQ requires microphone access for the Chromatic Guitar Tuner and Intonation Checker.</string>
 </dict>
 </plist>
