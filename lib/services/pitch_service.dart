@@ -93,11 +93,13 @@ class PitchService {
 
     try {
       final hasPermission = await _audioRecorder.hasPermission();
+      debugPrint('PitchService: hasPermission = $hasPermission');
       if (!hasPermission) {
         debugPrint('PitchService: Microphone permission denied');
         return false;
       }
 
+      debugPrint('PitchService: Starting audio stream (sampleRate=44100)...');
       final stream = await _audioRecorder.startStream(
         const RecordConfig(
           encoder: AudioEncoder.pcm16bits,
@@ -110,24 +112,80 @@ class PitchService {
       _audioSubscription = stream.listen((uint8List) {
         _processAudioBuffer(uint8List);
       }, onError: (err) {
-        debugPrint('PitchService error: $err');
+        debugPrint('PitchService error in stream listener: $err');
       });
 
+      debugPrint('PitchService: Audio stream listener registered successfully!');
       return true;
-    } catch (e) {
-      debugPrint('PitchService failed to start microphone: $e');
+    } catch (e, st) {
+      debugPrint('PitchService failed to start microphone: $e\n$st');
       _isListening = false;
       return false;
     }
   }
 
-  Future<void> _processAudioBuffer(Uint8List buffer) async {
-    if (buffer.length < 2048) return;
+  final List<int> _audioAccumulator = [];
+  int _receivedChunkCount = 0;
+
+  void _processAudioBuffer(Uint8List chunk) {
+    if (chunk.isEmpty) return;
+    _receivedChunkCount++;
+    if (_receivedChunkCount % 20 == 0) {
+      debugPrint('PitchService: Received chunk #$_receivedChunkCount, size: ${chunk.length} bytes (buffer total: ${_audioAccumulator.length})');
+    }
+    _audioAccumulator.addAll(chunk);
+
+    // 2048 16-bit PCM samples = 4096 bytes required by PitchDetector
+    const targetByteLength = 4096;
+
+    while (_audioAccumulator.length >= targetByteLength) {
+      final pcmSlice = Uint8List.fromList(_audioAccumulator.sublist(0, targetByteLength));
+      _audioAccumulator.removeRange(0, 2048); // 50% overlap
+
+      _analyzePcmBuffer(pcmSlice);
+    }
+  }
+
+  double _smoothedFreq = 0.0;
+  DateTime? _lastValidPitchTime;
+
+  Future<void> _analyzePcmBuffer(Uint8List buffer) async {
+    final byteData = buffer.buffer.asByteData(buffer.offsetInBytes, buffer.length);
+    final int samplesCount = buffer.length ~/ 2;
+    final List<double> floatList = List<double>.filled(samplesCount, 0.0);
+
+    double sumSquare = 0.0;
+    for (int i = 0; i < samplesCount; i++) {
+      final int sampleInt16 = byteData.getInt16(i * 2, Endian.little);
+      final double sampleFloat = sampleInt16 / 32768.0;
+      floatList[i] = sampleFloat;
+      sumSquare += sampleFloat * sampleFloat;
+    }
+
+    final double rms = sqrt(sumSquare / (samplesCount > 0 ? samplesCount : 1));
+
+    // Noise gate threshold: RMS >= 0.015 (~ -36 dB)
+    if (rms < 0.015) {
+      if (_lastValidPitchTime != null && DateTime.now().difference(_lastValidPitchTime!).inMilliseconds > 1500) {
+        _smoothedFreq = 0.0;
+        _pitchController.add(TunerNote.fromFrequency(0));
+      }
+      return;
+    }
 
     try {
-      final result = await _pitchDetector.getPitchFromIntBuffer(buffer);
-      if ((result.pitched || result.probability > 0.55) && result.pitch > 40 && result.pitch < 1000) {
-        final tunerNote = TunerNote.fromFrequency(result.pitch);
+      final result = await _pitchDetector.getPitchFromFloatBuffer(floatList);
+      if (result.pitch >= 60 && result.pitch <= 1000 && (result.pitched || result.probability >= 0.65)) {
+        _lastValidPitchTime = DateTime.now();
+
+        // Exponential Moving Average (EMA) for butter-smooth tuner needle movement
+        if (_smoothedFreq == 0.0 || (_smoothedFreq - result.pitch).abs() > 35) {
+          _smoothedFreq = result.pitch;
+        } else {
+          _smoothedFreq = 0.35 * result.pitch + 0.65 * _smoothedFreq;
+        }
+
+        final tunerNote = TunerNote.fromFrequency(_smoothedFreq);
         _pitchController.add(tunerNote);
       }
     } catch (e) {

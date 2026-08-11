@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/pitch_service.dart';
 import '../services/intonation_service.dart';
 import '../widgets/tuner_gauge_widget.dart';
@@ -42,12 +44,22 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
   }
 
   Future<void> _initPitchListener() async {
+    if (!kIsWeb && (Theme.of(context).platform == TargetPlatform.iOS || Theme.of(context).platform == TargetPlatform.android)) {
+      try {
+        final micStatus = await Permission.microphone.request();
+        debugPrint('TunerScreen: Permission.microphone.request() returned $micStatus');
+      } catch (e) {
+        debugPrint('Permission request error: $e');
+      }
+    }
+
     final success = await _pitchService.startListening();
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Microphone permission required for Guitar Tuner & Intonation Checker.'),
-          backgroundColor: Colors.redAccent,
+          content: Text('Could not start microphone stream. Use the test string buttons below to simulate pitches.'),
+          backgroundColor: Colors.amber,
+          duration: Duration(seconds: 4),
         ),
       );
     }
@@ -184,12 +196,12 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStringRefChip('6: Low E', 'E2 (82.4 Hz)', _currentNote?.noteName == 'E' && _currentNote?.octave == 2),
-                    _buildStringRefChip('5: A', 'A2 (110 Hz)', _currentNote?.noteName == 'A' && _currentNote?.octave == 2),
-                    _buildStringRefChip('4: D', 'D3 (146.8 Hz)', _currentNote?.noteName == 'D' && _currentNote?.octave == 3),
-                    _buildStringRefChip('3: G', 'G3 (196 Hz)', _currentNote?.noteName == 'G' && _currentNote?.octave == 3),
-                    _buildStringRefChip('2: B', 'B3 (246.9 Hz)', _currentNote?.noteName == 'B' && _currentNote?.octave == 3),
-                    _buildStringRefChip('1: High E', 'E4 (329.6 Hz)', _currentNote?.noteName == 'E' && _currentNote?.octave == 4),
+                    _buildStringRefChip('6: Low E', 'E2 (82.4 Hz)', 82.41, _currentNote?.noteName == 'E' && _currentNote?.octave == 2),
+                    _buildStringRefChip('5: A', 'A2 (110 Hz)', 110.00, _currentNote?.noteName == 'A' && _currentNote?.octave == 2),
+                    _buildStringRefChip('4: D', 'D3 (146.8 Hz)', 146.83, _currentNote?.noteName == 'D' && _currentNote?.octave == 3),
+                    _buildStringRefChip('3: G', 'G3 (196 Hz)', 196.00, _currentNote?.noteName == 'G' && _currentNote?.octave == 3),
+                    _buildStringRefChip('2: B', 'B3 (246.9 Hz)', 246.94, _currentNote?.noteName == 'B' && _currentNote?.octave == 3),
+                    _buildStringRefChip('1: High E', 'E4 (329.6 Hz)', 329.63, _currentNote?.noteName == 'E' && _currentNote?.octave == 4),
                   ],
                 ),
               ],
@@ -200,32 +212,36 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildStringRefChip(String stringLabel, String target, bool isActive) {
-    return Column(
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: isActive ? Colors.amber : const Color(0xFF141220),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isActive ? Colors.amber : Colors.white12),
-          ),
-          child: Text(
-            stringLabel,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: isActive ? Colors.black : Colors.white,
+  Widget _buildStringRefChip(String stringLabel, String target, double frequency, bool isActive) {
+    return InkWell(
+      onTap: () => _pitchService.injectFrequency(frequency),
+      borderRadius: BorderRadius.circular(8),
+      child: Column(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: isActive ? Colors.amber : const Color(0xFF141220),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: isActive ? Colors.amber : Colors.white12),
+            ),
+            child: Text(
+              stringLabel,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isActive ? Colors.black : Colors.white,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          target,
-          style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            target,
+            style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
     );
   }
 
