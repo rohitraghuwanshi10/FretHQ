@@ -39,6 +39,24 @@ class WeakPosition {
   }
 }
 
+class FretHeatmapStat {
+  final int stringNumber;
+  final int fretNumber;
+  final int totalAttempts;
+  final int correctCount;
+  final int wrongCount;
+  final double accuracy;
+
+  FretHeatmapStat({
+    required this.stringNumber,
+    required this.fretNumber,
+    required this.totalAttempts,
+    required this.correctCount,
+    required this.wrongCount,
+    required this.accuracy,
+  });
+}
+
 class SessionSummary {
   final int id;
   final String timestamp;
@@ -201,6 +219,43 @@ class DatabaseHelper {
         accuracy: accuracy,
       );
     }).toList();
+  }
+
+  /// Returns heatmap stats for all tested fret positions across strings 1-6 and frets 0-12
+  Future<Map<String, FretHeatmapStat>> getAllFretPositionsStats() async {
+    final db = await database;
+
+    final result = await db.rawQuery('''
+      SELECT 
+        string_number,
+        fret_number,
+        COUNT(*) as total_attempts,
+        SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct_count,
+        SUM(CASE WHEN is_correct = 0 THEN 1 ELSE 0 END) as wrong_count
+      FROM answer_logs
+      GROUP BY string_number, fret_number
+    ''');
+
+    final Map<String, FretHeatmapStat> statsMap = {};
+    for (final row in result) {
+      final str = (row['string_number'] as num).toInt();
+      final fret = (row['fret_number'] as num).toInt();
+      final total = (row['total_attempts'] as num).toInt();
+      final correct = (row['correct_count'] as num).toInt();
+      final wrong = (row['wrong_count'] as num).toInt();
+      final accuracy = total > 0 ? (correct / total) * 100.0 : 0.0;
+
+      final key = '$str-$fret';
+      statsMap[key] = FretHeatmapStat(
+        stringNumber: str,
+        fretNumber: fret,
+        totalAttempts: total,
+        correctCount: correct,
+        wrongCount: wrong,
+        accuracy: accuracy,
+      );
+    }
+    return statsMap;
   }
 
   /// Get overall aggregated statistics

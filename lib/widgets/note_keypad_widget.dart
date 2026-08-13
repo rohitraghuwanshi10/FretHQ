@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/note.dart';
+import '../theme/app_theme.dart';
 
 class NoteKeypadWidget extends StatelessWidget {
   final ValueChanged<Note> onNoteSelected;
@@ -21,8 +23,8 @@ class NoteKeypadWidget extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4, // 4 columns x 3 rows
-        childAspectRatio: 2.2,
+        crossAxisCount: 4, // 4 cols x 3 rows
+        childAspectRatio: 2.1,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
@@ -32,30 +34,40 @@ class NoteKeypadWidget extends StatelessWidget {
         final isAccidental = note.id.contains('#');
         final isButtonActive = isEnabled && (!isAccidental || allowAccidentals);
 
+        final activeBg = isAccidental ? const Color(0xFF1F1C32) : const Color(0xFF2B263C);
+        final activeBorder = isAccidental
+            ? AppColors.purple.withValues(alpha: 0.5)
+            : AppColors.gold.withValues(alpha: 0.5);
+        final activeTextColor = isAccidental
+            ? const Color(0xFFC4B5FD) // soft violet
+            : const Color(0xFFFDE68A); // soft gold
+
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: isButtonActive ? () => onNoteSelected(note) : null,
-            borderRadius: BorderRadius.circular(10),
-            splashColor: Colors.amberAccent.withValues(alpha: 0.3),
+            onTap: isButtonActive
+                ? () {
+                    HapticFeedback.selectionClick();
+                    onNoteSelected(note);
+                  }
+                : null,
+            borderRadius: BorderRadius.circular(12),
+            splashColor: (isAccidental ? AppColors.purple : AppColors.gold).withValues(alpha: 0.2),
+            highlightColor: (isAccidental ? AppColors.purple : AppColors.gold).withValues(alpha: 0.1),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               decoration: BoxDecoration(
-                color: isButtonActive
-                    ? (isAccidental ? const Color(0xFF242230) : const Color(0xFF323042))
-                    : Colors.grey.shade900.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
+                color: isButtonActive ? activeBg : Colors.grey.shade900.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isButtonActive
-                      ? (isAccidental ? Colors.deepPurple.shade300.withValues(alpha: 0.5) : Colors.amber.withValues(alpha: 0.4))
-                      : Colors.white10,
+                  color: isButtonActive ? activeBorder : Colors.white10,
                   width: 1.2,
                 ),
                 boxShadow: isButtonActive
                     ? [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 4,
+                          color: (isAccidental ? AppColors.purple : AppColors.gold).withValues(alpha: 0.15),
+                          blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
                       ]
@@ -65,16 +77,15 @@ class NoteKeypadWidget extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 6.0),
                     child: Text(
                       note.displayName,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: isAccidental ? 13 : 16,
-                        fontWeight: FontWeight.bold,
-                        color: isButtonActive
-                            ? (isAccidental ? Colors.purpleAccent.shade100 : Colors.amber.shade200)
-                            : Colors.white24,
+                        fontSize: isAccidental ? 13 : 17,
+                        fontWeight: FontWeight.w800,
+                        color: isButtonActive ? activeTextColor : Colors.white24,
+                        letterSpacing: 0.3,
                       ),
                     ),
                   ),

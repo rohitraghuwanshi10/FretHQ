@@ -114,5 +114,18 @@ void main() {
         session.answer(target);
       }
     });
+
+    test('getAllFretPositionsStats aggregates counts and accuracy across neck', () async {
+      final heatmap = await DatabaseHelper.instance.getAllFretPositionsStats();
+      expect(heatmap, isA<Map<String, FretHeatmapStat>>());
+      // Verify that previously saved sessions produced heatmap keys
+      expect(heatmap.isNotEmpty, isTrue);
+      final firstKey = heatmap.keys.first;
+      expect(firstKey, contains('-'));
+      final stat = heatmap[firstKey]!;
+      expect(stat.totalAttempts, greaterThan(0));
+      expect(stat.accuracy, greaterThanOrEqualTo(0.0));
+      expect(stat.accuracy, lessThanOrEqualTo(100.0));
+    });
   });
 }

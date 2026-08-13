@@ -1,17 +1,22 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/pitch_service.dart';
 import '../services/intonation_service.dart';
 import '../widgets/tuner_gauge_widget.dart';
+import '../widgets/glass_card.dart';
+import '../theme/app_theme.dart';
 
 class TunerScreen extends StatefulWidget {
   final int initialTabIndex;
+  final bool isEmbedded;
 
   const TunerScreen({
     super.key,
     this.initialTabIndex = 0,
+    this.isEmbedded = false,
   });
 
   @override
@@ -44,7 +49,7 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
   }
 
   Future<void> _initPitchListener() async {
-    if (!kIsWeb && (Theme.of(context).platform == TargetPlatform.iOS || Theme.of(context).platform == TargetPlatform.android)) {
+    if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android)) {
       try {
         final micStatus = await Permission.microphone.request();
         debugPrint('TunerScreen: Permission.microphone.request() returned $micStatus');
@@ -56,10 +61,12 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
     final success = await _pitchService.startListening();
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not start microphone stream. Use the test string buttons below to simulate pitches.'),
-          backgroundColor: Colors.amber,
-          duration: Duration(seconds: 4),
+        SnackBar(
+          content: const Text('Could not start microphone stream. Use the string reference chips below to test pitches.'),
+          backgroundColor: AppColors.gold,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -70,7 +77,6 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
         _currentNote = note;
       });
 
-      // Auto capture frequencies for Intonation Wizard if active note is detected
       _processIntonationCapture(note);
     });
   }
@@ -79,13 +85,12 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
     if (note.detectedFrequency <= 40) return;
 
     if (_intonationStep == 1 && _openFreqCaptured == null) {
-      // Capture open string note
       setState(() {
         _openFreqCaptured = note.detectedFrequency;
         _intonationStep = 2;
       });
+      HapticFeedback.mediumImpact();
     } else if (_intonationStep == 2 && _openFreqCaptured != null && _fret12FreqCaptured == null) {
-      // Capture 12th fret note (only if frequency is higher than open note)
       if (note.detectedFrequency > _openFreqCaptured! * 1.5) {
         setState(() {
           _fret12FreqCaptured = note.detectedFrequency;
@@ -95,11 +100,13 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
             fret12Freq: _fret12FreqCaptured!,
           );
         });
+        HapticFeedback.heavyImpact();
       }
     }
   }
 
   void _resetIntonationStep() {
+    HapticFeedback.selectionClick();
     setState(() {
       _intonationStep = 1;
       _openFreqCaptured = null;
@@ -118,28 +125,25 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121216),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Guitar Tools',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        centerTitle: true,
+        leading: widget.isEmbedded
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+        title: const Text('Guitar Tools & Diagnostics'),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.amber,
-          labelColor: Colors.amber,
-          unselectedLabelColor: Colors.grey,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          indicatorColor: AppColors.gold,
+          labelColor: AppColors.gold,
+          unselectedLabelColor: AppColors.textMuted,
+          indicatorWeight: 3,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
           tabs: const [
-            Tab(icon: Icon(Icons.tune, size: 20), text: 'Chromatic Tuner'),
-            Tab(icon: Icon(Icons.build_circle_outlined, size: 20), text: 'Intonation Checker'),
+            Tab(icon: Icon(Icons.tune_rounded, size: 20), text: 'Chromatic Tuner'),
+            Tab(icon: Icon(Icons.build_circle_outlined, size: 20), text: 'Intonation Setup'),
           ],
         ),
       ),
@@ -156,37 +160,32 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
   // --- TAB 1: CHROMATIC TUNER ---
   Widget _buildTunerTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(18.0),
+      padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
       child: Column(
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
           // Tuner Analog Gauge Widget
           TunerGaugeWidget(currentNote: _currentNote),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
 
           // Standard Guitar Tuning References Card
-          Container(
+          GlassCard(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E28),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white10),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
-                  children: [
-                    Icon(Icons.music_note, color: Colors.amber, size: 18),
+                Row(
+                  children: const [
+                    Icon(Icons.music_note_rounded, color: AppColors.gold, size: 18),
                     SizedBox(width: 8),
                     Text(
                       'STANDARD GUITAR STRINGS (E A D G B E)',
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.amber,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.gold,
                         letterSpacing: 1.0,
                       ),
                     ),
@@ -198,125 +197,173 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
                   children: [
                     _buildStringRefChip('6: Low E', 'E2 (82.4 Hz)', 82.41, _currentNote?.noteName == 'E' && _currentNote?.octave == 2),
                     _buildStringRefChip('5: A', 'A2 (110 Hz)', 110.00, _currentNote?.noteName == 'A' && _currentNote?.octave == 2),
-                    _buildStringRefChip('4: D', 'D3 (146.8 Hz)', 146.83, _currentNote?.noteName == 'D' && _currentNote?.octave == 3),
+                    _buildStringRefChip('4: D', 'D3 (147 Hz)', 146.83, _currentNote?.noteName == 'D' && _currentNote?.octave == 3),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
                     _buildStringRefChip('3: G', 'G3 (196 Hz)', 196.00, _currentNote?.noteName == 'G' && _currentNote?.octave == 3),
-                    _buildStringRefChip('2: B', 'B3 (246.9 Hz)', 246.94, _currentNote?.noteName == 'B' && _currentNote?.octave == 3),
-                    _buildStringRefChip('1: High E', 'E4 (329.6 Hz)', 329.63, _currentNote?.noteName == 'E' && _currentNote?.octave == 4),
+                    _buildStringRefChip('2: B', 'B3 (247 Hz)', 246.94, _currentNote?.noteName == 'B' && _currentNote?.octave == 3),
+                    _buildStringRefChip('1: High E', 'E4 (330 Hz)', 329.63, _currentNote?.noteName == 'E' && _currentNote?.octave == 4),
                   ],
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildStringRefChip(String stringLabel, String target, double frequency, bool isActive) {
-    return InkWell(
-      onTap: () => _pitchService.injectFrequency(frequency),
-      borderRadius: BorderRadius.circular(8),
-      child: Column(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: isActive ? Colors.amber : const Color(0xFF141220),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isActive ? Colors.amber : Colors.white12),
-            ),
-            child: Text(
-              stringLabel,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: isActive ? Colors.black : Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            target,
-            style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-          ),
-        ],
-      ),
-    );
-  }
+          const SizedBox(height: 16),
 
-  // --- TAB 2: INTONATION CHECKER ---
-  Widget _buildIntonationTab() {
-    final activeResult = _intonationService.getResult(_selectedIntonationString);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(18.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Banner
-          Container(
+          // Diagnostic Pitch Trigger
+          GlassCard(
+            borderColor: AppColors.cyan.withValues(alpha: 0.3),
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.cyanAccent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3)),
-            ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline, color: Colors.cyanAccent, size: 20),
+                const Icon(Icons.touch_app_rounded, color: AppColors.cyan, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    'Intonation setup ensures notes stay in tune all the way up the neck by comparing Open String pitch vs 12th Fret pitch.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade300, height: 1.3),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text('Test Frequency Trigger', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
+                      Text('Tap any string chip above to simulate frequency input', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStringRefChip(String stringLabel, String sub, double targetFreq, bool isActive) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            _pitchService.injectFrequency(targetFreq);
+          },
+          borderRadius: BorderRadius.circular(10),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: isActive ? AppColors.emerald.withValues(alpha: 0.25) : AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isActive ? AppColors.emerald : AppColors.borderSubtle,
+                width: 1.2,
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  stringLabel,
+                  style: TextStyle(
+                    color: isActive ? AppColors.emerald : Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sub,
+                  style: TextStyle(
+                    color: isActive ? AppColors.emerald : AppColors.textMuted,
+                    fontSize: 9,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- TAB 2: INTONATION CHECKER WIZARD ---
+  Widget _buildIntonationTab() {
+    final currentResult = _intonationService.getResult(_selectedIntonationString);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 6),
+
+          // Overview Guidance Card
+          GlassCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'GUITAR INTONATION DIAGNOSTICS',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.cyan, letterSpacing: 1.0),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Intonation ensures your guitar plays in tune across the entire neck. We compare open string frequency with the 12th fret octave.',
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 18),
 
           // String Selector
           const Text(
-            'SELECT STRING TO CHECK',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber, letterSpacing: 1.0),
+            'SELECT STRING TO TEST',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.gold, letterSpacing: 1.0),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
+
           Row(
-            children: IntonationService.stringDefs.map((s) {
-              final num = s['num'] as int;
-              final name = s['name'] as String;
-              final isSelected = _selectedIntonationString == num;
+            children: [6, 5, 4, 3, 2, 1].map((s) {
+              final isSelected = _selectedIntonationString == s;
+              final hasData = _intonationService.getResult(s) != null;
+              final sNames = {6: '6: E', 5: '5: A', 4: '4: D', 3: '3: G', 2: '2: B', 1: '1: E'};
 
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2.0),
                   child: InkWell(
                     onTap: () {
+                      HapticFeedback.selectionClick();
                       setState(() {
-                        _selectedIntonationString = num;
+                        _selectedIntonationString = s;
                         _resetIntonationStep();
                       });
                     },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    borderRadius: BorderRadius.circular(10),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
-                        color: isSelected ? Colors.amber : const Color(0xFF1E1E28),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: isSelected ? Colors.amber : Colors.white12),
+                        color: isSelected ? AppColors.gold : AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSelected ? AppColors.gold : (hasData ? AppColors.cyan : AppColors.borderSubtle),
+                        ),
                       ),
                       child: Center(
                         child: Text(
-                          '$num: $name',
+                          sNames[s]!,
                           style: TextStyle(
-                            fontSize: 10,
+                            color: isSelected ? Colors.black : Colors.white,
                             fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.black : Colors.grey.shade300,
+                            fontSize: 11,
                           ),
-                          textAlign: TextAlign.center,
                         ),
                       ),
                     ),
@@ -326,16 +373,11 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
             }).toList(),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Guided Step Wizard Card
-          Container(
+          // Intonation 2-Step Live Capture Wizard
+          GlassCard(
             padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E28),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white10),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -344,141 +386,137 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
                   children: [
                     Text(
                       'STEP $_intonationStep OF 2',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.cyanAccent, letterSpacing: 1.0),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.cyan, letterSpacing: 1.0),
                     ),
-                    TextButton.icon(
+                    TextButton(
                       onPressed: _resetIntonationStep,
-                      icon: const Icon(Icons.refresh, size: 14, color: Colors.amber),
-                      label: const Text('RESTART', style: TextStyle(fontSize: 11, color: Colors.amber)),
+                      child: const Text('Reset', style: TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
 
-                if (_intonationStep == 1) ...[
-                  const Text(
-                    '1. Pluck the OPEN String',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Let the string ring clearly into your microphone until frequency is captured.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildCapturedBox('Open String Pitch', _openFreqCaptured),
-                ] else ...[
-                  const Text(
-                    '2. Pluck the 12TH FRET (Pressed Note)',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Fret and pluck the 12th fret note on this string to measure octave pitch.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(child: _buildCapturedBox('Open Pitch', _openFreqCaptured)),
-                      const SizedBox(width: 8),
-                      Expanded(child: _buildCapturedBox('12th Fret Pitch', _fret12FreqCaptured)),
-                    ],
-                  ),
-                ],
+                // Step 1: Open String
+                _buildStepRow(
+                  stepNum: 1,
+                  isActive: _intonationStep == 1,
+                  isDone: _openFreqCaptured != null,
+                  title: 'Pluck Open String',
+                  subtitle: _openFreqCaptured != null
+                      ? 'Captured: ${_openFreqCaptured!.toStringAsFixed(1)} Hz'
+                      : 'Pluck the open string clearly',
+                ),
+
+                const SizedBox(height: 12),
+
+                // Step 2: 12th Fret Octave
+                _buildStepRow(
+                  stepNum: 2,
+                  isActive: _intonationStep == 2,
+                  isDone: _fret12FreqCaptured != null,
+                  title: 'Pluck 12th Fret Note',
+                  subtitle: _fret12FreqCaptured != null
+                      ? 'Captured: ${_fret12FreqCaptured!.toStringAsFixed(1)} Hz'
+                      : 'Fret or play 12th fret harmonic',
+                ),
               ],
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
-          // Intonation Evaluation & Saddle Adjustment Recommendation
-          if (activeResult != null && activeResult.status != IntonationStatus.incomplete) ...[
-            const Text(
-              'INTONATION EVALUATION & RECOMMENDATION',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber, letterSpacing: 1.0),
-            ),
-            const SizedBox(height: 10),
-
-            Container(
+          // Diagnostic Intonation Advice Card
+          if (currentResult != null) ...[
+            GlassCard(
+              borderColor: currentResult.status == IntonationStatus.ideal
+                  ? AppColors.emerald.withValues(alpha: 0.4)
+                  : AppColors.gold.withValues(alpha: 0.4),
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: activeResult.status == IntonationStatus.ideal
-                    ? Colors.greenAccent.withValues(alpha: 0.15)
-                    : (activeResult.status == IntonationStatus.sharp
-                        ? Colors.redAccent.withValues(alpha: 0.15)
-                        : Colors.cyanAccent.withValues(alpha: 0.15)),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: activeResult.status == IntonationStatus.ideal
-                      ? Colors.greenAccent
-                      : (activeResult.status == IntonationStatus.sharp ? Colors.redAccent : Colors.cyanAccent),
-                ),
-              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       Icon(
-                        activeResult.status == IntonationStatus.ideal
-                            ? Icons.check_circle
-                            : (activeResult.status == IntonationStatus.sharp ? Icons.arrow_upward : Icons.arrow_downward),
-                        color: activeResult.status == IntonationStatus.ideal
-                            ? Colors.greenAccent
-                            : (activeResult.status == IntonationStatus.sharp ? Colors.redAccent : Colors.cyanAccent),
+                        currentResult.status == IntonationStatus.ideal
+                            ? Icons.check_circle_rounded
+                            : Icons.build_circle_rounded,
+                        color: currentResult.status == IntonationStatus.ideal
+                            ? AppColors.emerald
+                            : AppColors.gold,
+                        size: 22,
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        activeResult.status == IntonationStatus.ideal
-                            ? 'PERFECT INTONATION'
-                            : (activeResult.status == IntonationStatus.sharp ? 'SHARP INTONATION' : 'FLAT INTONATION'),
+                        'INTONATION ANALYSIS',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: activeResult.status == IntonationStatus.ideal
-                              ? Colors.greenAccent
-                              : (activeResult.status == IntonationStatus.sharp ? Colors.redAccent : Colors.cyanAccent),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: currentResult.status == IntonationStatus.ideal
+                              ? AppColors.emerald
+                              : AppColors.gold,
+                          letterSpacing: 1.0,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Text(
-                    activeResult.saddleRecommendation,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white, height: 1.4),
+                    currentResult.saddleRecommendation,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white, height: 1.3),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Deviation: ${currentResult.centsDeviation > 0 ? "+" : ""}${currentResult.centsDeviation.toStringAsFixed(1)} cents (Open: ${currentResult.openFrequency.toStringAsFixed(1)} Hz vs 12th: ${currentResult.fret12Frequency.toStringAsFixed(1)} Hz)',
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                   ),
                 ],
               ),
             ),
           ],
+
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildCapturedBox(String title, double? freq) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF141220),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: freq != null ? Colors.greenAccent : Colors.white12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
-          Text(
-            freq != null ? '${freq.toStringAsFixed(1)} Hz' : 'Listening...',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: freq != null ? Colors.greenAccent : Colors.amber,
-            ),
+  Widget _buildStepRow({
+    required int stepNum,
+    required bool isActive,
+    required bool isDone,
+    required String title,
+    required String subtitle,
+  }) {
+    Color color = isDone ? AppColors.emerald : (isActive ? AppColors.gold : AppColors.textMuted);
+
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withValues(alpha: 0.15),
+            border: Border.all(color: color, width: 1.5),
           ),
-        ],
-      ),
+          child: Center(
+            child: isDone
+                ? const Icon(Icons.check_rounded, color: AppColors.emerald, size: 18)
+                : Text('$stepNum', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isActive ? Colors.white : Colors.white70)),
+              Text(subtitle, style: TextStyle(fontSize: 11, color: color)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/game_session.dart';
 import '../models/note.dart';
 import '../services/high_score_service.dart';
 import '../services/database_helper.dart';
 import '../widgets/interactive_fretboard_widget.dart';
+import '../widgets/glass_card.dart';
+import '../theme/app_theme.dart';
 import 'results_screen.dart';
 
 class FindFretScreen extends StatefulWidget {
@@ -73,7 +76,6 @@ class _FindFretScreenState extends State<FindFretScreen> {
         ? 'weak_spot'
         : (widget.includeAccidentals ? 'full' : 'easy');
 
-    // Save session and detailed attempt logs to database with game2 tag
     await DatabaseHelper.instance.saveGameSession(_session, 'game2_$modeName');
 
     final isHigh = await HighScoreService.saveSession(
@@ -92,16 +94,19 @@ class _FindFretScreenState extends State<FindFretScreen> {
 
     final tappedPosition = TargetPosition(stringNumber: stringNumber, fretNumber: fretNumber);
     final userNote = tappedPosition.targetNote;
-    final targetNote = _session.currentPosition!.targetNote;
-    final isExactMatch = stringNumber == _session.currentPosition!.stringNumber &&
-        userNote.id == targetNote.id;
 
     final isCorrect = _session.answer(userNote);
+
+    if (isCorrect) {
+      HapticFeedback.lightImpact();
+    } else {
+      HapticFeedback.mediumImpact();
+    }
 
     _flashTimer?.cancel();
     setState(() {
       _lastTappedPosition = tappedPosition;
-      _flashColor = isCorrect ? Colors.greenAccent : Colors.redAccent;
+      _flashColor = isCorrect ? AppColors.emerald : AppColors.coral;
     });
 
     _flashTimer = Timer(const Duration(milliseconds: 350), () {
@@ -159,59 +164,108 @@ class _FindFretScreenState extends State<FindFretScreen> {
     final durationMins = widget.durationSeconds ~/ 60;
     final currentTarget = _session.currentPosition;
     final targetNote = currentTarget?.targetNote;
+    final timerRatio = widget.durationSeconds > 0
+        ? _session.secondsRemaining / widget.durationSeconds
+        : 0.0;
+    final isLowTime = _session.secondsRemaining <= 10;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121216),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+          icon: const Icon(Icons.close_rounded, color: Colors.white70),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Find Fret - ${durationMins}m (${widget.isWeakSpotFocus ? "Weak Spots" : (widget.includeAccidentals ? "Full" : "Easy Mode")})',
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+          'Find Fret • ${durationMins}m ${widget.isWeakSpotFocus ? "(Weak Spots)" : (widget.includeAccidentals ? "(Full)" : "(Easy)")}',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Top HUD Bar: Score, Timer, Streak
+            // Top HUD Bar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Score
-                  _buildHudItem(
-                    label: 'SCORE',
-                    value: '${_session.correctCount}',
-                    color: Colors.amber,
-                  ),
-                  // Timer
-                  _buildHudItem(
-                    label: 'TIME LEFT',
-                    value: '${_session.secondsRemaining}s',
-                    color: _session.secondsRemaining <= 10 ? Colors.redAccent : Colors.cyanAccent,
-                  ),
-                  // Streak
-                  _buildHudItem(
-                    label: 'STREAK',
-                    value: '${_session.currentStreak} 🔥',
-                    color: Colors.orangeAccent,
-                  ),
-                ],
+              padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 8.0),
+              child: GlassCard(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Timer
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                value: timerRatio,
+                                strokeWidth: 3,
+                                backgroundColor: Colors.white10,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  isLowTime ? AppColors.coral : AppColors.cyan,
+                                ),
+                              ),
+                              Icon(
+                                Icons.timer_outlined,
+                                size: 14,
+                                color: isLowTime ? AppColors.coral : AppColors.cyan,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${_session.secondsRemaining}s',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: isLowTime ? AppColors.coral : Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Streak
+                    if (_session.currentStreak >= 3)
+                      GlassBadge(
+                        text: '${_session.currentStreak} Streak 🔥',
+                        color: AppColors.orange,
+                        icon: Icons.bolt_rounded,
+                        fontSize: 11,
+                      ),
+
+                    // Score
+                    Row(
+                      children: [
+                        const Text(
+                          'Score: ',
+                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        ),
+                        Text(
+                          '${_session.correctCount}',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.cyan,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
             // Target Prompt Banner
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                padding: const EdgeInsets.symmetric(horizontal: 18.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -219,57 +273,48 @@ class _FindFretScreenState extends State<FindFretScreen> {
                       'TAP THE FRET LOCATION FOR:',
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white54,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMuted,
                         letterSpacing: 1.2,
                       ),
                     ),
                     const SizedBox(height: 12),
 
                     if (targetNote != null && currentTarget != null) ...[
-                      // Note Name Badge
+                      // Glowing Target Note Badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E1C2E),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.amber, width: 2),
+                          color: const Color(0xFF1E1B32),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.gold, width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.amber.withValues(alpha: 0.3),
-                              blurRadius: 16,
-                              spreadRadius: 1,
+                              color: AppColors.gold.withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              spreadRadius: 2,
                             ),
                           ],
                         ),
                         child: Text(
                           targetNote.displayName,
                           style: const TextStyle(
-                            fontSize: 42,
+                            fontSize: 44,
                             fontWeight: FontWeight.w900,
-                            color: Colors.amber,
+                            color: AppColors.gold,
                             letterSpacing: 1.0,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
 
-                      // String Constraint Subtitle
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF262438),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          'ON ${_getStringName(currentTarget.stringNumber).toUpperCase()}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.cyanAccent,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
+                      // String Constraint Subtitle Pill
+                      GlassBadge(
+                        text: 'ON ${_getStringName(currentTarget.stringNumber).toUpperCase()}',
+                        color: AppColors.cyan,
+                        icon: Icons.music_note_rounded,
+                        fontSize: 12,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                       ),
                     ],
                   ],
@@ -279,12 +324,12 @@ class _FindFretScreenState extends State<FindFretScreen> {
 
             // Interactive Fretboard Widget
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+              padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 16.0),
               child: Column(
                 children: [
-                  Text(
-                    'Tap the string and fret position on the neck below',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                  const Text(
+                    'Tap string and fret location on guitar neck below',
+                    style: TextStyle(fontSize: 11, color: AppColors.textMuted),
                   ),
                   const SizedBox(height: 8),
                   InteractiveFretboardWidget(
@@ -298,31 +343,6 @@ class _FindFretScreenState extends State<FindFretScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildHudItem({required String label, required String value, required Color color}) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: Colors.white54,
-            letterSpacing: 1.0,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            color: color,
-          ),
-        ),
-      ],
     );
   }
 }

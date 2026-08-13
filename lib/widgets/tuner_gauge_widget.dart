@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../services/pitch_service.dart';
+import '../theme/app_theme.dart';
 
 class TunerGaugeWidget extends StatelessWidget {
   final TunerNote? currentNote;
@@ -18,28 +19,33 @@ class TunerGaugeWidget extends StatelessWidget {
 
     Color stateColor;
     if (note == null || note.noteName == '--') {
-      stateColor = Colors.grey.shade600;
+      stateColor = AppColors.textMuted;
     } else if (isInTune) {
-      stateColor = Colors.greenAccent;
+      stateColor = AppColors.emerald;
     } else if (cents < 0) {
-      stateColor = Colors.cyanAccent;
+      stateColor = AppColors.cyan;
     } else {
-      stateColor = Colors.redAccent;
+      stateColor = AppColors.coral;
     }
 
     return Container(
       width: double.infinity,
-      height: 260,
+      height: 270,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B1926),
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.surfaceGlass,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: stateColor.withValues(alpha: 0.4), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: stateColor.withValues(alpha: 0.1),
+            blurRadius: 16,
+            spreadRadius: 2,
           ),
         ],
       ),
@@ -49,7 +55,7 @@ class TunerGaugeWidget extends StatelessWidget {
           Expanded(
             child: CustomPaint(
               size: const Size(double.infinity, double.infinity),
-              painter: _GaugePainter(
+              painter: _PhotorealisticGaugePainter(
                 centsOffset: cents,
                 stateColor: stateColor,
                 isInTune: isInTune,
@@ -57,7 +63,7 @@ class TunerGaugeWidget extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
           // Digital Display Readings
           if (note != null && note.noteName != '--') ...[
@@ -69,7 +75,7 @@ class TunerGaugeWidget extends StatelessWidget {
                 Text(
                   note.fullDisplay,
                   style: TextStyle(
-                    fontSize: 48,
+                    fontSize: 52,
                     fontWeight: FontWeight.w900,
                     color: stateColor,
                     letterSpacing: 1.0,
@@ -78,23 +84,23 @@ class TunerGaugeWidget extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text(
                   '${note.detectedFrequency.toStringAsFixed(1)} Hz',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade300,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                   decoration: BoxDecoration(
                     color: stateColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: stateColor.withValues(alpha: 0.5)),
                   ),
                   child: Text(
@@ -105,7 +111,7 @@ class TunerGaugeWidget extends StatelessWidget {
                             : 'SHARP (+${cents.toStringAsFixed(1)} cents) • TUNE DOWN ↓'),
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                       color: stateColor,
                       letterSpacing: 0.5,
                     ),
@@ -118,15 +124,15 @@ class TunerGaugeWidget extends StatelessWidget {
               'PLUCK A GUITAR STRING',
               style: TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white54,
+                fontWeight: FontWeight.w900,
+                color: Colors.white70,
                 letterSpacing: 1.2,
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              'Listening via MacBook Microphone...',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            const Text(
+              'Listening via device microphone...',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
           ],
         ],
@@ -135,12 +141,12 @@ class TunerGaugeWidget extends StatelessWidget {
   }
 }
 
-class _GaugePainter extends CustomPainter {
-  final double centsOffset; // -50 to +50
+class _PhotorealisticGaugePainter extends CustomPainter {
+  final double centsOffset;
   final Color stateColor;
   final bool isInTune;
 
-  _GaugePainter({
+  _PhotorealisticGaugePainter({
     required this.centsOffset,
     required this.stateColor,
     required this.isInTune,
@@ -148,15 +154,15 @@ class _GaugePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * 0.85);
-    final radius = size.height * 0.72;
+    final center = Offset(size.width / 2, size.height * 0.88);
+    final radius = size.height * 0.74;
 
     const startAngle = -pi * 0.75; // -135 deg
     const totalAngle = pi * 0.5; // 90 deg range
 
-    // Draw Arc Background
+    // Arc Background
     final arcPaint = Paint()
-      ..color = Colors.white10
+      ..color = Colors.white12
       ..strokeWidth = 8.0
       ..style = PaintingStyle.stroke;
     canvas.drawArc(
@@ -167,9 +173,9 @@ class _GaugePainter extends CustomPainter {
       arcPaint,
     );
 
-    // Draw In-Tune Center Zone Halo
+    // In-Tune Center Zone Halo
     final centerZonePaint = Paint()
-      ..color = Colors.greenAccent.withValues(alpha: 0.3)
+      ..color = AppColors.emerald.withValues(alpha: 0.35)
       ..strokeWidth = 10.0
       ..style = PaintingStyle.stroke;
     const centerZoneAngle = (5.0 / 100.0) * totalAngle;
@@ -181,7 +187,7 @@ class _GaugePainter extends CustomPainter {
       centerZonePaint,
     );
 
-    // Draw Ticks & Labels (-50 to +50)
+    // Ticks & Labels (-50 to +50)
     final tickPaint = Paint()
       ..color = Colors.white30
       ..strokeWidth = 1.5;
@@ -200,7 +206,7 @@ class _GaugePainter extends CustomPainter {
       final p1 = Offset(center.dx + innerR * cos(angle), center.dy + innerR * sin(angle));
       final p2 = Offset(center.dx + outerR * cos(angle), center.dy + outerR * sin(angle));
 
-      tickPaint.color = isZero ? Colors.greenAccent : (isMajor ? Colors.white60 : Colors.white24);
+      tickPaint.color = isZero ? AppColors.emerald : (isMajor ? Colors.white70 : Colors.white24);
       tickPaint.strokeWidth = isZero ? 3.0 : (isMajor ? 2.0 : 1.0);
 
       canvas.drawLine(p1, p2, tickPaint);
@@ -210,7 +216,7 @@ class _GaugePainter extends CustomPainter {
         textPainter.text = TextSpan(
           text: labelText,
           style: TextStyle(
-            color: isZero ? Colors.greenAccent : Colors.grey.shade500,
+            color: isZero ? AppColors.emerald : Colors.grey.shade500,
             fontSize: 9,
             fontWeight: FontWeight.bold,
           ),
@@ -224,7 +230,7 @@ class _GaugePainter extends CustomPainter {
       }
     }
 
-    // Draw Animated Needle
+    // Animated Needle
     final needleRatio = (centsOffset.clamp(-50.0, 50.0) + 50) / 100.0;
     final needleAngle = startAngle + needleRatio * totalAngle;
 
@@ -234,30 +240,30 @@ class _GaugePainter extends CustomPainter {
       center.dy + needleLength * sin(needleAngle),
     );
 
-    // Glow halo under needle
+    // Glow under needle
     final glowPaint = Paint()
-      ..color = stateColor.withValues(alpha: 0.4)
+      ..color = stateColor.withValues(alpha: 0.5)
       ..strokeWidth = 6.0
       ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     canvas.drawLine(center, needleEnd, glowPaint);
 
-    // Solid Needle line
+    // Needle line
     final needlePaint = Paint()
       ..color = stateColor
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(center, needleEnd, needlePaint);
 
-    // Needle pivot hub
+    // Hub
     final hubPaint = Paint()..color = stateColor;
-    canvas.drawCircle(center, 7, hubPaint);
+    canvas.drawCircle(center, 8, hubPaint);
     final innerHubPaint = Paint()..color = Colors.black;
-    canvas.drawCircle(center, 3, innerHubPaint);
+    canvas.drawCircle(center, 3.5, innerHubPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _GaugePainter oldDelegate) {
+  bool shouldRepaint(covariant _PhotorealisticGaugePainter oldDelegate) {
     return oldDelegate.centsOffset != centsOffset ||
         oldDelegate.stateColor != stateColor ||
         oldDelegate.isInTune != isInTune;

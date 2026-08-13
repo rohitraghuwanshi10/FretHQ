@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/game_session.dart';
+import '../theme/app_theme.dart';
+import '../widgets/glass_card.dart';
 
-class ResultsScreen extends StatelessWidget {
+class ResultsScreen extends StatefulWidget {
   final GameSession session;
   final bool isNewHighScore;
   final VoidCallback onPlayAgain;
@@ -16,120 +19,129 @@ class ResultsScreen extends StatelessWidget {
   });
 
   @override
+  State<ResultsScreen> createState() => _ResultsScreenState();
+}
+
+class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _scoreAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    _scoreAnimation = Tween<double>(
+      begin: 0,
+      end: widget.session.correctCount.toDouble(),
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
+
+    _animController.forward();
+
+    if (widget.isNewHighScore) {
+      HapticFeedback.heavyImpact();
+    }
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final accuracy = session.accuracyPercentage;
-    final score = session.correctCount;
-    final attempts = session.totalAttempts;
-    final incorrectAttempts = session.incorrectAttempts;
+    final accuracy = widget.session.accuracyPercentage;
+    final attempts = widget.session.totalAttempts;
+    final incorrectAttempts = widget.session.incorrectAttempts;
+    final maxStreak = widget.session.maxStreak;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121216),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Header badge
-                if (isNewHighScore)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
+                if (widget.isNewHighScore) ...[
+                  GlassBadge(
+                    text: 'NEW PERSONAL BEST SCORE!',
+                    color: AppColors.gold,
+                    icon: Icons.emoji_events_rounded,
+                    fontSize: 13,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.amber, width: 1.5),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.emoji_events, color: Colors.amber, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'NEW PERSONAL BEST!',
-                          style: TextStyle(
-                            color: Colors.amber,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            letterSpacing: 1.1,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
+                  const SizedBox(height: 14),
+                ],
 
                 const Text(
                   'Time\'s Up!',
                   style: TextStyle(
                     fontSize: 32,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                     color: Colors.white,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Fretboard Identification Test Complete',
+                const SizedBox(height: 4),
+                const Text(
+                  'Practice Session Summary',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade400,
+                    color: AppColors.textSecondary,
                   ),
                 ),
 
                 const SizedBox(height: 24),
 
                 // Main Score Hero Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF232035), Color(0xFF191726)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.deepPurple.shade400.withValues(alpha: 0.4)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.deepPurple.withValues(alpha: 0.2),
-                        blurRadius: 15,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
+                GlassCard(
+                  gradient: AppColors.heroCardGradient,
+                  borderColor: AppColors.purple.withValues(alpha: 0.5),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      Text(
-                        '$score',
-                        style: const TextStyle(
-                          fontSize: 58,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.amberAccent,
-                          height: 1.0,
-                        ),
+                      AnimatedBuilder(
+                        animation: _scoreAnimation,
+                        builder: (context, child) {
+                          return Text(
+                            '${_scoreAnimation.value.toInt()}',
+                            style: const TextStyle(
+                              fontSize: 64,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.gold,
+                              height: 1.0,
+                            ),
+                          );
+                        },
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
-                        'CORRECT NOTES IN 60s',
-                        style: TextStyle(
+                        'CORRECT NOTES IN ${widget.session.durationSeconds}s',
+                        style: const TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade400,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textSecondary,
                           letterSpacing: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 18),
-                      const Divider(color: Colors.white12),
+                      const SizedBox(height: 20),
+                      const Divider(color: AppColors.borderSubtle),
                       const SizedBox(height: 14),
 
-                      // Stats Grid
+                      // Stats Row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _buildStatItem('Accuracy', '${accuracy.toStringAsFixed(1)}%', Icons.track_changes, Colors.cyanAccent),
-                          _buildStatItem('Max Streak', '${session.maxStreak}', Icons.bolt, Colors.orangeAccent),
-                          _buildStatItem('Total Answered', '$attempts', Icons.format_list_numbered, Colors.greenAccent),
+                          _buildStatItem('Accuracy', '${accuracy.toStringAsFixed(1)}%', Icons.track_changes_rounded, AppColors.cyan),
+                          _buildStatItem('Max Streak', '$maxStreak 🔥', Icons.bolt_rounded, AppColors.orange),
+                          _buildStatItem('Total Answered', '$attempts', Icons.format_list_numbered_rounded, AppColors.emerald),
                         ],
                       ),
                     ],
@@ -138,39 +150,32 @@ class ResultsScreen extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                // Incorrect Answers Review Breakdown Section
-                Container(
-                  width: double.infinity,
+                // Missed Questions Review
+                GlassCard(
+                  borderColor: incorrectAttempts.isEmpty
+                      ? AppColors.emerald.withValues(alpha: 0.3)
+                      : AppColors.coral.withValues(alpha: 0.3),
                   padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1B1926),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: incorrectAttempts.isEmpty
-                          ? Colors.greenAccent.withValues(alpha: 0.3)
-                          : Colors.redAccent.withValues(alpha: 0.3),
-                    ),
-                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           Icon(
-                            incorrectAttempts.isEmpty ? Icons.check_circle : Icons.error_outline,
-                            color: incorrectAttempts.isEmpty ? Colors.greenAccent : Colors.redAccent,
+                            incorrectAttempts.isEmpty ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                            color: incorrectAttempts.isEmpty ? AppColors.emerald : AppColors.coral,
                             size: 20,
                           ),
                           const SizedBox(width: 8),
                           Text(
                             incorrectAttempts.isEmpty
-                                ? 'PERFECT SCORE - NO MISSED NOTES!'
-                                : 'MISSED QUESTIONS (${incorrectAttempts.length})',
+                                ? 'PERFECT ROUND — NO MISSED NOTES!'
+                                : 'MISSED NOTES REVIEW (${incorrectAttempts.length})',
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: incorrectAttempts.isEmpty ? Colors.greenAccent : Colors.redAccent,
-                              letterSpacing: 1.1,
+                              fontWeight: FontWeight.w800,
+                              color: incorrectAttempts.isEmpty ? AppColors.emerald : AppColors.coral,
+                              letterSpacing: 1.0,
                             ),
                           ),
                         ],
@@ -180,8 +185,8 @@ class ResultsScreen extends StatelessWidget {
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 6.0),
                           child: Text(
-                            'Outstanding performance! You identified every fretboard note correctly in this round.',
-                            style: TextStyle(color: Colors.white70, fontSize: 13),
+                            'Flawless precision! You identified every fretboard note with 100% accuracy.',
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                           ),
                         )
                       else
@@ -189,7 +194,7 @@ class ResultsScreen extends StatelessWidget {
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: incorrectAttempts.length,
-                          separatorBuilder: (context, index) => const Divider(color: Colors.white10),
+                          separatorBuilder: (context, index) => const Divider(color: AppColors.borderSubtle),
                           itemBuilder: (context, index) {
                             final item = incorrectAttempts[index];
                             final pos = item.position;
@@ -200,13 +205,13 @@ class ResultsScreen extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(vertical: 4.0),
                               child: Row(
                                 children: [
-                                  // Fretboard Location Badge
+                                  // Fret Location
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: Colors.amber.withValues(alpha: 0.15),
+                                      color: AppColors.gold.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                                      border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
                                     ),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,11 +221,11 @@ class ResultsScreen extends StatelessWidget {
                                           style: const TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.amberAccent,
+                                            color: AppColors.gold,
                                           ),
                                         ),
                                         Text(
-                                          pos.fretNumber == 0 ? 'Fret 0 (Open)' : 'Fret ${pos.fretNumber}',
+                                          pos.fretNumber == 0 ? 'Open (Fret 0)' : 'Fret ${pos.fretNumber}',
                                           style: TextStyle(
                                             fontSize: 10,
                                             color: Colors.grey.shade400,
@@ -231,23 +236,23 @@ class ResultsScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 14),
 
-                                  // Comparison: User Wrong Choice vs Correct Answer
+                                  // Comparison
                                   Expanded(
                                     child: Row(
                                       children: [
-                                        // User Choice
+                                        // User Wrong Choice
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(
+                                              const Text(
                                                 'YOUR ANSWER',
-                                                style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontWeight: FontWeight.bold),
+                                                style: TextStyle(fontSize: 9, color: AppColors.textMuted, fontWeight: FontWeight.bold),
                                               ),
                                               const SizedBox(height: 2),
                                               Row(
                                                 children: [
-                                                  const Icon(Icons.close, color: Colors.redAccent, size: 14),
+                                                  const Icon(Icons.close_rounded, color: AppColors.coral, size: 14),
                                                   const SizedBox(width: 4),
                                                   Flexible(
                                                     child: Text(
@@ -255,7 +260,7 @@ class ResultsScreen extends StatelessWidget {
                                                       style: const TextStyle(
                                                         fontSize: 13,
                                                         fontWeight: FontWeight.bold,
-                                                        color: Colors.redAccent,
+                                                        color: AppColors.coral,
                                                       ),
                                                     ),
                                                   ),
@@ -266,19 +271,19 @@ class ResultsScreen extends StatelessWidget {
                                         ),
                                         const SizedBox(width: 8),
 
-                                        // Correct Note
+                                        // Correct Answer
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(
+                                              const Text(
                                                 'CORRECT NOTE',
-                                                style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontWeight: FontWeight.bold),
+                                                style: TextStyle(fontSize: 9, color: AppColors.textMuted, fontWeight: FontWeight.bold),
                                               ),
                                               const SizedBox(height: 2),
                                               Row(
                                                 children: [
-                                                  const Icon(Icons.check, color: Colors.greenAccent, size: 14),
+                                                  const Icon(Icons.check_rounded, color: AppColors.emerald, size: 14),
                                                   const SizedBox(width: 4),
                                                   Flexible(
                                                     child: Text(
@@ -286,7 +291,7 @@ class ResultsScreen extends StatelessWidget {
                                                       style: const TextStyle(
                                                         fontSize: 13,
                                                         fontWeight: FontWeight.bold,
-                                                        color: Colors.greenAccent,
+                                                        color: AppColors.emerald,
                                                       ),
                                                     ),
                                                   ),
@@ -313,50 +318,29 @@ class ResultsScreen extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
-                        onPressed: onHome,
+                      child: OutlinedButton.icon(
+                        onPressed: widget.onHome,
+                        icon: const Icon(Icons.home_rounded, size: 20),
+                        label: const Text('Main Menu'),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(color: Colors.grey.shade700),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.home, color: Colors.white70, size: 20),
-                            SizedBox(width: 8),
-                            Text('Main Menu', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 14),
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: onPlayAgain,
+                      child: ElevatedButton.icon(
+                        onPressed: widget.onPlayAgain,
+                        icon: const Icon(Icons.replay_rounded, size: 20),
+                        label: const Text('Play Again'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.amber,
-                          foregroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 4,
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.replay, size: 20),
-                            SizedBox(width: 8),
-                            Text('Play Again', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                          ],
                         ),
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -369,21 +353,21 @@ class ResultsScreen extends StatelessWidget {
     return Column(
       children: [
         Icon(icon, color: color, size: 22),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
           value,
           style: const TextStyle(
             fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w900,
             color: Colors.white,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 11,
-            color: Colors.grey.shade500,
+            color: AppColors.textSecondary,
           ),
         ),
       ],

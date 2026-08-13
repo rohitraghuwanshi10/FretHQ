@@ -1,62 +1,67 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/game_session.dart';
 import '../models/note.dart';
+import '../models/scale_interval.dart';
 import '../services/high_score_service.dart';
 import '../services/database_helper.dart';
-import '../widgets/fretboard_widget.dart';
 import '../widgets/note_keypad_widget.dart';
 import '../widgets/glass_card.dart';
 import '../theme/app_theme.dart';
 import 'results_screen.dart';
 
-class IdentifyNoteScreen extends StatefulWidget {
+class ScaleQuizScreen extends StatefulWidget {
   final int durationSeconds;
-  final bool includeAccidentals;
-  final bool isWeakSpotFocus;
-  final List<TargetPosition>? weakTargetPositions;
 
-  const IdentifyNoteScreen({
+  const ScaleQuizScreen({
     super.key,
     this.durationSeconds = 60,
-    this.includeAccidentals = true,
-    this.isWeakSpotFocus = false,
-    this.weakTargetPositions,
   });
 
   @override
-  State<IdentifyNoteScreen> createState() => _IdentifyNoteScreenState();
+  State<ScaleQuizScreen> createState() => _ScaleQuizScreenState();
 }
 
-class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
+class _ScaleQuizScreenState extends State<ScaleQuizScreen> {
   late GameSession _session;
   Timer? _timer;
   Color _flashColor = Colors.transparent;
   Timer? _flashTimer;
   bool _isNewHighScore = false;
 
+  // Question details
+  late Note _currentRootNote;
+  late MusicalInterval _currentInterval;
+  late Note _expectedTargetNote;
+
   @override
   void initState() {
     super.initState();
-    _session = GameSession(
-      durationSeconds: widget.durationSeconds,
-      includeAccidentals: widget.includeAccidentals,
-      isWeakSpotFocus: widget.isWeakSpotFocus,
-      weakTargetPositions: widget.weakTargetPositions,
-    );
+    _session = GameSession(durationSeconds: widget.durationSeconds);
     _startTest();
   }
 
+  void _generateNextQuestion() {
+    final rand = Random();
+    _currentRootNote = Note.chromaticNotes[rand.nextInt(Note.chromaticNotes.length)];
+
+    final candidateIntervals = MusicalInterval.standardIntervals.where((i) => i.semitones > 0).toList();
+    _currentInterval = candidateIntervals[rand.nextInt(candidateIntervals.length)];
+
+    final targetIndex = (_currentRootNote.chromaticIndex + _currentInterval.semitones) % 12;
+    _expectedTargetNote = Note.chromaticNotes[targetIndex];
+
+    _session.currentPosition = TargetPosition(stringNumber: 6, fretNumber: _currentRootNote.chromaticIndex);
+  }
+
   void _startTest() {
-    _session = GameSession(
-      durationSeconds: widget.durationSeconds,
-      includeAccidentals: widget.includeAccidentals,
-      isWeakSpotFocus: widget.isWeakSpotFocus,
-      weakTargetPositions: widget.weakTargetPositions,
-    );
+    _session = GameSession(durationSeconds: widget.durationSeconds);
     _session.start();
     _isNewHighScore = false;
+    _generateNextQuestion();
+
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
@@ -71,15 +76,12 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
   }
 
   Future<void> _onTestFinished() async {
-    final modeName = widget.isWeakSpotFocus
-        ? 'weak_spot'
-        : (widget.includeAccidentals ? 'full' : 'easy');
-
-    await DatabaseHelper.instance.saveGameSession(_session, modeName);
+    await DatabaseHelper.instance.saveGameSession(_session, 'game3_scale_interval');
 
     final isHigh = await HighScoreService.saveSession(
       score: _session.correctCount,
       accuracy: _session.accuracyPercentage,
+      gameKey: 'game3',
     );
     if (!mounted) return;
     setState(() {
@@ -90,13 +92,26 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
   void _handleNoteInput(Note selectedNote) {
     if (_session.status != GameStatus.playing) return;
 
-    final isCorrect = _session.answer(selectedNote);
+    final isCorrect = selectedNote == _expectedTargetNote;
 
     if (isCorrect) {
       HapticFeedback.lightImpact();
+      _session.correctCount++;
+      _session.currentStreak++;
+      if (_session.currentStreak > _session.maxStreak) {
+        _session.maxStreak = _session.currentStreak;
+      }
     } else {
       HapticFeedback.mediumImpact();
+      _session.incorrectCount++;
+      _session.currentStreak = 0;
     }
+
+    _session.attemptsHistory.add(AnswerAttempt(
+      position: TargetPosition(stringNumber: 6, fretNumber: _expectedTargetNote.chromaticIndex),
+      userSelectedNote: selectedNote,
+      isCorrect: isCorrect,
+    ));
 
     setState(() {
       _flashColor = isCorrect ? AppColors.emerald : AppColors.coral;
@@ -107,6 +122,7 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
       if (!mounted) return;
       setState(() {
         _flashColor = Colors.transparent;
+        _generateNextQuestion();
       });
     });
   }
@@ -144,7 +160,6 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
       );
     }
 
-    final targetPos = _session.currentPosition;
     final durationMins = widget.durationSeconds ~/ 60;
     final timerRatio = widget.durationSeconds > 0
         ? _session.secondsRemaining / widget.durationSeconds
@@ -159,13 +174,13 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Identify Note • ${durationMins}m ${widget.isWeakSpotFocus ? "(Weak Spots)" : (widget.includeAccidentals ? "(Full)" : "(Easy)")}',
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+          'Scale & Interval Quiz • ${durationMins}m',
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 10.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -175,7 +190,7 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Timer with animated indicator
+                    // Timer
                     Row(
                       children: [
                         SizedBox(
@@ -189,13 +204,13 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
                                 strokeWidth: 3,
                                 backgroundColor: Colors.white10,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  isLowTime ? AppColors.coral : AppColors.gold,
+                                  isLowTime ? AppColors.coral : AppColors.purple,
                                 ),
                               ),
                               Icon(
                                 Icons.timer_outlined,
                                 size: 14,
-                                color: isLowTime ? AppColors.coral : AppColors.gold,
+                                color: isLowTime ? AppColors.coral : AppColors.purple,
                               ),
                             ],
                           ),
@@ -212,7 +227,7 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
                       ],
                     ),
 
-                    // Streak Badge
+                    // Streak
                     if (_session.currentStreak >= 3)
                       GlassBadge(
                         text: '${_session.currentStreak} Streak 🔥',
@@ -221,7 +236,7 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
                         fontSize: 11,
                       ),
 
-                    // Score Display
+                    // Score
                     Row(
                       children: [
                         const Text(
@@ -233,7 +248,7 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
-                            color: AppColors.emerald,
+                            color: AppColors.purple,
                           ),
                         ),
                       ],
@@ -242,73 +257,92 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
                 ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
 
-              // Photorealistic 6-String Fretboard
-              FretboardWidget(
-                targetPosition: targetPos,
-                maxFret: 12,
-                flashColor: _flashColor,
+              // Question Prompt Card
+              GlassCard(
+                gradient: AppColors.heroCardGradient,
+                borderColor: _flashColor != Colors.transparent
+                    ? _flashColor
+                    : AppColors.purple.withValues(alpha: 0.4),
+                padding: const EdgeInsets.all(22),
+                child: Column(
+                  children: [
+                    const Text(
+                      'IDENTIFY THE MUSICAL INTERVAL NOTE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.purple,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Root Note
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.gold.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.gold, width: 1.5),
+                          ),
+                          child: Text(
+                            _currentRootNote.displayName,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.gold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        const Icon(Icons.add_rounded, color: Colors.white54, size: 24),
+                        const SizedBox(width: 14),
+
+                        // Interval
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.purple.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.purple, width: 1.5),
+                          ),
+                          child: Text(
+                            _currentInterval.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.purple,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    Text(
+                      'What note is a ${_currentInterval.name} (+${_currentInterval.semitones} semitones) above ${_currentRootNote.displayName}?',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
 
-              // Target Prompt Guidance Card
-              if (targetPos != null)
-                GlassCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  borderColor: AppColors.gold.withValues(alpha: 0.3),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'What note is on ',
-                        style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.gold.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '${targetPos.stringName} String',
-                          style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.gold, fontSize: 13),
-                        ),
-                      ),
-                      const Text(
-                        ' at ',
-                        style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.cyan.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          targetPos.fretNumber == 0 ? 'Open (Fret 0)' : 'Fret ${targetPos.fretNumber}',
-                          style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.cyan, fontSize: 13),
-                        ),
-                      ),
-                      const Text(
-                        ' ?',
-                        style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-
-              const SizedBox(height: 14),
-
-              // Note Keypad Answer Grid
+              // Note Keypad
               NoteKeypadWidget(
                 onNoteSelected: _handleNoteInput,
                 isEnabled: _session.status == GameStatus.playing,
-                allowAccidentals: widget.includeAccidentals,
+                allowAccidentals: true,
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
             ],
           ),
         ),

@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import '../services/database_helper.dart';
 import '../models/note.dart';
+import '../theme/app_theme.dart';
+import '../widgets/glass_card.dart';
+import '../widgets/fretboard_heatmap_widget.dart';
 
 class AnalyticsScreen extends StatefulWidget {
-  const AnalyticsScreen({super.key});
+  final bool isEmbedded;
+
+  const AnalyticsScreen({
+    super.key,
+    this.isEmbedded = false,
+  });
 
   @override
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
@@ -14,6 +22,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Map<String, dynamic> _overallStats = {};
   List<WeakPosition> _weakPositions = [];
   List<SessionSummary> _sessionHistory = [];
+  Map<String, FretHeatmapStat> _heatmapStats = {};
 
   @override
   void initState() {
@@ -25,12 +34,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final stats = await DatabaseHelper.instance.getOverallStats();
     final weak = await DatabaseHelper.instance.getWeakestPositions(limit: 10);
     final history = await DatabaseHelper.instance.getSessionHistory(limit: 20);
+    final heatmap = await DatabaseHelper.instance.getAllFretPositionsStats();
 
     if (!mounted) return;
     setState(() {
       _overallStats = stats;
       _weakPositions = weak;
       _sessionHistory = history;
+      _heatmapStats = heatmap;
       _isLoading = false;
     });
   }
@@ -56,114 +67,123 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121216),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Performance & Analytics',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        centerTitle: true,
+        leading: widget.isEmbedded
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+        title: const Text('Performance & Analytics'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: AppColors.purple),
+            onPressed: _loadAnalytics,
+          ),
+        ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.amber))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.purple))
           : RefreshIndicator(
               onRefresh: _loadAnalytics,
-              color: Colors.amber,
+              color: AppColors.purple,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(18.0),
+                padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Overview Summary Header
-                    const Text(
-                      'OVERALL PERFORMANCE',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.amber,
-                        letterSpacing: 1.1,
-                      ),
+                    // Section 1: Overview Summary Metrics
+                    const _SectionTitle(
+                      title: 'PRACTICE METRICS OVERVIEW',
+                      icon: Icons.insights_rounded,
+                      color: AppColors.purple,
                     ),
                     const SizedBox(height: 10),
 
-                    // Grid of 4 Stat Cards
                     GridView.count(
                       crossAxisCount: 2,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       crossAxisSpacing: 10,
                       mainAxisSpacing: 10,
-                      childAspectRatio: 1.8,
+                      childAspectRatio: 1.65,
                       children: [
                         _buildMetricCard(
                           'Overall Accuracy',
                           '${(_overallStats['overall_accuracy'] as double? ?? 0.0).toStringAsFixed(1)}%',
-                          Icons.insights,
-                          Colors.cyanAccent,
+                          Icons.track_changes_rounded,
+                          AppColors.cyan,
                         ),
                         _buildMetricCard(
-                          'Best Score',
+                          'Personal Best',
                           '${_overallStats['highest_score'] ?? 0} pts',
-                          Icons.emoji_events,
-                          Colors.amber,
+                          Icons.emoji_events_rounded,
+                          AppColors.gold,
                         ),
                         _buildMetricCard(
-                          'Total Practice Tests',
+                          'Tests Completed',
                           '${_overallStats['total_sessions'] ?? 0}',
-                          Icons.sports_esports,
-                          Colors.purpleAccent,
+                          Icons.fitness_center_rounded,
+                          AppColors.purple,
                         ),
                         _buildMetricCard(
-                          'Notes Answered',
+                          'Notes Identified',
                           '${_overallStats['total_attempts'] ?? 0}',
-                          Icons.music_note,
-                          Colors.greenAccent,
+                          Icons.music_note_rounded,
+                          AppColors.emerald,
                         ),
                       ],
                     ),
 
                     const SizedBox(height: 28),
 
-                    // Weak Frets Analytics Section
+                    // Section 2: Interactive Fretboard Heatmap
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        const _SectionTitle(
+                          title: 'FRETBOARD MASTERY HEATMAP',
+                          icon: Icons.grid_view_rounded,
+                          color: AppColors.cyan,
+                        ),
                         const Text(
-                          'FRETS NEEDING PRACTICE',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.redAccent,
-                            letterSpacing: 1.1,
-                          ),
+                          'Tap note to inspect',
+                          style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    FretboardHeatmapWidget(heatmapStats: _heatmapStats),
+
+                    const SizedBox(height: 28),
+
+                    // Section 3: Weak Frets Needing Practice
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const _SectionTitle(
+                          title: 'PRIORITY WEAK SPOTS',
+                          icon: Icons.warning_amber_rounded,
+                          color: AppColors.coral,
                         ),
                         Text(
-                          '${_weakPositions.length} Positions Identified',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                          '${_weakPositions.length} Identified',
+                          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
 
                     if (_weakPositions.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E1E26),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white10),
-                        ),
+                      GlassCard(
+                        padding: const EdgeInsets.all(20),
                         child: const Center(
                           child: Text(
-                            'No error patterns detected yet! Complete more practice sessions.',
-                            style: TextStyle(color: Colors.white54, fontSize: 13),
+                            'No error patterns detected yet! Complete practice sessions to discover weak spots.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                           ),
                         ),
                       )
@@ -171,32 +191,29 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       Column(
                         children: _weakPositions.map((weak) {
                           final note = Note.getNoteForPosition(weak.stringNumber, weak.fretNumber);
-                          return Container(
+                          return GlassCard(
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1A1826),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
-                            ),
+                            borderColor: AppColors.coral.withValues(alpha: 0.3),
                             child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: Colors.redAccent.withValues(alpha: 0.15),
+                                    color: AppColors.coral.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: AppColors.coral.withValues(alpha: 0.4)),
                                   ),
                                   child: Text(
                                     note.displayName,
                                     style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.redAccent,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.coral,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 14),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,16 +237,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                                 backgroundColor: Colors.white10,
                                                 valueColor: AlwaysStoppedAnimation<Color>(
                                                   weak.accuracy < 50
-                                                      ? Colors.redAccent
-                                                      : (weak.accuracy < 75 ? Colors.orangeAccent : Colors.greenAccent),
+                                                      ? AppColors.coral
+                                                      : (weak.accuracy < 75 ? AppColors.gold : AppColors.emerald),
                                                 ),
                                                 minHeight: 6,
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: 10),
+                                          const SizedBox(width: 8),
                                           Text(
-                                            '${weak.accuracy.toStringAsFixed(0)}% Acc',
+                                            '${weak.accuracy.toStringAsFixed(0)}%',
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
@@ -250,14 +267,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                       style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.redAccent,
+                                        color: AppColors.coral,
                                       ),
                                     ),
                                     Text(
-                                      '${weak.totalAttempts} Attempts',
-                                      style: TextStyle(
+                                      '${weak.totalAttempts} tries',
+                                      style: const TextStyle(
                                         fontSize: 10,
-                                        color: Colors.grey.shade500,
+                                        color: AppColors.textMuted,
                                       ),
                                     ),
                                   ],
@@ -270,39 +287,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Game Session History
+                    // Section 4: Practice Sessions History
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'PRACTICE HISTORY',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.cyanAccent,
-                            letterSpacing: 1.1,
-                          ),
+                        const _SectionTitle(
+                          title: 'RECENT TEST HISTORY',
+                          icon: Icons.history_rounded,
+                          color: AppColors.emerald,
                         ),
                         Text(
-                          'Last ${_sessionHistory.length} Tests',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                          'Last ${_sessionHistory.length} Sessions',
+                          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
 
                     if (_sessionHistory.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E1E26),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white10),
-                        ),
+                      GlassCard(
+                        padding: const EdgeInsets.all(20),
                         child: const Center(
                           child: Text(
                             'No practice test history recorded yet.',
-                            style: TextStyle(color: Colors.white54, fontSize: 13),
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                           ),
                         ),
                       )
@@ -314,21 +322,24 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         itemBuilder: (context, index) {
                           final session = _sessionHistory[index];
                           final durationMins = session.durationSec ~/ 60;
+                          final isGame2 = session.mode.contains('game2');
 
-                          return Container(
+                          return GlassCard(
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E1E26),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white10),
-                            ),
                             child: Row(
                               children: [
-                                Icon(
-                                  Icons.timer_outlined,
-                                  color: Colors.grey.shade400,
-                                  size: 20,
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: (isGame2 ? AppColors.cyan : AppColors.gold).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    isGame2 ? Icons.touch_app_rounded : Icons.music_note_rounded,
+                                    color: isGame2 ? AppColors.cyan : AppColors.gold,
+                                    size: 18,
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -338,45 +349,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                       Row(
                                         children: [
                                           Text(
-                                            '${durationMins}m Test',
+                                            isGame2 ? 'Find Fret (${durationMins}m)' : 'Identify Note (${durationMins}m)',
                                             style: const TextStyle(
-                                              fontSize: 14,
+                                              fontSize: 13,
                                               fontWeight: FontWeight.bold,
                                               color: Colors.white,
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: session.mode == 'weak_spot'
-                                                  ? Colors.redAccent.withValues(alpha: 0.2)
-                                                  : (session.mode == 'easy'
-                                                      ? Colors.greenAccent.withValues(alpha: 0.2)
-                                                      : Colors.amber.withValues(alpha: 0.2)),
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              session.mode == 'weak_spot'
-                                                  ? 'Weak Spots'
-                                                  : (session.mode == 'easy' ? 'Easy' : 'Full'),
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.bold,
-                                                color: session.mode == 'weak_spot'
-                                                    ? Colors.redAccent
-                                                    : (session.mode == 'easy' ? Colors.greenAccent : Colors.amber),
-                                              ),
-                                            ),
-                                          ),
+                                          const SizedBox(width: 6),
+                                          _buildSessionModeBadge(session.mode),
                                         ],
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         _formatTimestamp(session.timestamp),
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           fontSize: 11,
-                                          color: Colors.grey.shade500,
+                                          color: AppColors.textMuted,
                                         ),
                                       ),
                                     ],
@@ -390,14 +379,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                       style: const TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.amber,
+                                        color: AppColors.gold,
                                       ),
                                     ),
                                     Text(
-                                      '${session.accuracy.toStringAsFixed(1)}% Acc',
+                                      '${session.accuracy.toStringAsFixed(0)}% Acc',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: Colors.grey.shade400,
+                                        color: session.accuracy >= 80
+                                            ? AppColors.emerald
+                                            : (session.accuracy >= 50 ? AppColors.gold : AppColors.coral),
                                       ),
                                     ),
                                   ],
@@ -407,6 +398,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           );
                         },
                       ),
+
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -415,13 +408,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
-    return Container(
+    return GlassCard(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E26),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
+      borderColor: color.withValues(alpha: 0.3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -433,10 +422,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade400,
+                    color: AppColors.textSecondary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -447,13 +436,76 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           Text(
             value,
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
               color: color,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSessionModeBadge(String mode) {
+    Color badgeColor;
+    String label;
+
+    if (mode.contains('weak_spot')) {
+      badgeColor = AppColors.coral;
+      label = 'Adaptive';
+    } else if (mode.contains('easy')) {
+      badgeColor = AppColors.emerald;
+      label = 'Easy';
+    } else {
+      badgeColor = AppColors.gold;
+      label = 'Full';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: badgeColor.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+          color: badgeColor,
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color color;
+
+  const _SectionTitle({
+    required this.title,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: color,
+            letterSpacing: 1.1,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frethq/models/note.dart';
 import 'package:frethq/models/game_session.dart';
+import 'package:frethq/models/scale_interval.dart';
 
 void main() {
   group('Music Theory & Fretboard Engine Tests', () {
@@ -152,6 +153,47 @@ void main() {
         session.answer(target);
       }
       expect(foundAccidental, isTrue, reason: 'Expected to find at least one sharp/flat note in 100 prompts in Full Mode');
+    });
+  });
+
+  group('MusicalInterval & GuitarScale Theory Tests', () {
+    test('Standard intervals verify semitone distances', () {
+      expect(MusicalInterval.standardIntervals.length, equals(13));
+      final root = MusicalInterval.standardIntervals.firstWhere((i) => i.shortName == 'R');
+      final fifth = MusicalInterval.standardIntervals.firstWhere((i) => i.shortName == 'P5');
+      final octave = MusicalInterval.standardIntervals.firstWhere((i) => i.shortName == 'P8');
+
+      expect(root.semitones, equals(0));
+      expect(fifth.semitones, equals(7));
+      expect(octave.semitones, equals(12));
+    });
+
+    test('GuitarScale containsNote calculates correctly for C Major', () {
+      final majorScale = GuitarScale.popularScales.firstWhere((s) => s.name == 'Major Scale');
+      final c = Note.chromaticNotes.firstWhere((n) => n.id == 'C');
+      final e = Note.chromaticNotes.firstWhere((n) => n.id == 'E');
+      final g = Note.chromaticNotes.firstWhere((n) => n.id == 'G');
+      final fSharp = Note.chromaticNotes.firstWhere((n) => n.id == 'F#');
+
+      expect(majorScale.containsNote(c, e), isTrue);
+      expect(majorScale.containsNote(c, g), isTrue);
+      expect(majorScale.containsNote(c, fSharp), isFalse);
+    });
+
+    test('GuitarScale containsNote calculates correctly for A Minor Pentatonic', () {
+      final pentatonic = GuitarScale.popularScales.firstWhere((s) => s.name == 'Minor Pentatonic');
+      final a = Note.chromaticNotes.firstWhere((n) => n.id == 'A');
+      final c = Note.chromaticNotes.firstWhere((n) => n.id == 'C');
+      final d = Note.chromaticNotes.firstWhere((n) => n.id == 'D');
+      final e = Note.chromaticNotes.firstWhere((n) => n.id == 'E');
+      final g = Note.chromaticNotes.firstWhere((n) => n.id == 'G');
+      final b = Note.chromaticNotes.firstWhere((n) => n.id == 'B');
+
+      expect(pentatonic.containsNote(a, c), isTrue);
+      expect(pentatonic.containsNote(a, d), isTrue);
+      expect(pentatonic.containsNote(a, e), isTrue);
+      expect(pentatonic.containsNote(a, g), isTrue);
+      expect(pentatonic.containsNote(a, b), isFalse);
     });
   });
 }
