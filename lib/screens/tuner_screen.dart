@@ -5,7 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/pitch_service.dart';
 import '../services/intonation_service.dart';
+import '../services/metronome_service.dart';
+import '../models/metronome_pattern.dart';
 import '../widgets/tuner_gauge_widget.dart';
+import '../widgets/metronome_pendulum_widget.dart';
 import '../widgets/glass_card.dart';
 import '../theme/app_theme.dart';
 
@@ -27,6 +30,7 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
   late TabController _tabController;
   final PitchService _pitchService = PitchService();
   final IntonationService _intonationService = IntonationService();
+  final MetronomeService _metronomeService = MetronomeService.instance;
 
   StreamSubscription<TunerNote>? _pitchSubscription;
   TunerNote? _currentNote;
@@ -41,11 +45,23 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 2,
+      length: 3,
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
-    _initPitchListener();
+    _tabController.addListener(_handleTabChange);
+    if (widget.initialTabIndex != 2) {
+      _initPitchListener();
+    }
+  }
+
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging) return;
+    if (_tabController.index == 2) {
+      _pitchService.stopListening();
+    } else {
+      _initPitchListener();
+    }
   }
 
   Future<void> _initPitchListener() async {
@@ -118,6 +134,7 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
   void dispose() {
     _pitchSubscription?.cancel();
     _pitchService.dispose();
+    _metronomeService.stop();
     _tabController.dispose();
     super.dispose();
   }
@@ -140,10 +157,11 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
           labelColor: AppColors.gold,
           unselectedLabelColor: AppColors.textMuted,
           indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+          labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
           tabs: const [
-            Tab(icon: Icon(Icons.tune_rounded, size: 20), text: 'Chromatic Tuner'),
-            Tab(icon: Icon(Icons.build_circle_outlined, size: 20), text: 'Intonation Setup'),
+            Tab(icon: Icon(Icons.tune_rounded, size: 18), text: 'Tuner'),
+            Tab(icon: Icon(Icons.build_circle_outlined, size: 18), text: 'Intonation'),
+            Tab(icon: Icon(Icons.speed_rounded, size: 18), text: 'Metronome'),
           ],
         ),
       ),
@@ -152,12 +170,15 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
         children: [
           _buildTunerTab(),
           _buildIntonationTab(),
+          _buildMetronomeTab(),
         ],
       ),
     );
   }
 
+  // ==========================================
   // --- TAB 1: CHROMATIC TUNER ---
+  // ==========================================
   Widget _buildTunerTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
@@ -289,7 +310,9 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
     );
   }
 
+  // ==========================================
   // --- TAB 2: INTONATION CHECKER WIZARD ---
+  // ==========================================
   Widget _buildIntonationTab() {
     final currentResult = _intonationService.getResult(_selectedIntonationString);
 
@@ -514,6 +537,310 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
               Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isActive ? Colors.white : Colors.white70)),
               Text(subtitle, style: TextStyle(fontSize: 11, color: color)),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // --- TAB 3: PRO METRONOME ---
+  // ==========================================
+  Widget _buildMetronomeTab() {
+    final bpm = _metronomeService.bpm;
+    final isPlaying = _metronomeService.isPlaying;
+    final activeSig = _metronomeService.timeSignature;
+    final activeSub = _metronomeService.subdivision;
+    final speedTrainer = _metronomeService.speedTrainerEnabled;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Visual Pendulum & LED Beat Strip
+          MetronomePendulumWidget(metronomeService: _metronomeService),
+
+          const SizedBox(height: 16),
+
+          // BPM Stepper Controls & Slider
+          GlassCard(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStepButton('-5', () => setState(() => _metronomeService.adjustBpm(-5))),
+                    _buildStepButton('-1', () => setState(() => _metronomeService.adjustBpm(-1))),
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: AppColors.gold,
+                          inactiveTrackColor: Colors.white12,
+                          thumbColor: AppColors.gold,
+                          overlayColor: AppColors.gold.withValues(alpha: 0.2),
+                          trackHeight: 4,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+                        ),
+                        child: Slider(
+                          value: bpm.toDouble(),
+                          min: 30,
+                          max: 300,
+                          onChanged: (val) {
+                            setState(() => _metronomeService.setBpm(val.round()));
+                          },
+                        ),
+                      ),
+                    ),
+                    _buildStepButton('+1', () => setState(() => _metronomeService.adjustBpm(1))),
+                    _buildStepButton('+5', () => setState(() => _metronomeService.adjustBpm(5))),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Tap Tempo Button
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        final calc = _metronomeService.recordTapTempo();
+                        if (calc != null) {
+                          setState(() {});
+                        }
+                      },
+                      icon: const Icon(Icons.touch_app_rounded, size: 16),
+                      label: const Text('TAP TEMPO'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.surfaceElevated,
+                        foregroundColor: AppColors.gold,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: const BorderSide(color: AppColors.gold),
+                        ),
+                      ),
+                    ),
+
+                    // Play / Stop Toggle Button
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        HapticFeedback.mediumImpact();
+                        setState(() => _metronomeService.togglePlay());
+                      },
+                      icon: Icon(isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 20),
+                      label: Text(isPlaying ? 'STOP' : 'START'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isPlaying ? AppColors.coral : AppColors.gold,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          // Time Signature Selection
+          const _SectionHeader(title: 'TIME SIGNATURE & METER', icon: Icons.straighten_rounded),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: TimeSignaturePreset.presets.map((preset) {
+                final isSelected = activeSig.name == preset.name;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6.0),
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _metronomeService.setTimeSignature(preset));
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.gold : AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSelected ? AppColors.gold : AppColors.borderSubtle,
+                        ),
+                      ),
+                      child: Text(
+                        preset.name,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? Colors.black : Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          // Subdivision Selection
+          const _SectionHeader(title: 'RHYTHM SUBDIVISION', icon: Icons.graphic_eq_rounded),
+          const SizedBox(height: 8),
+          Row(
+            children: Subdivision.values.map((sub) {
+              final isSelected = activeSub == sub;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3.0),
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _metronomeService.setSubdivision(sub));
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.cyan : AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSelected ? AppColors.cyan : AppColors.borderSubtle,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            sub.symbol,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: isSelected ? Colors.black : Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            sub.label,
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.black87 : AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+
+          const SizedBox(height: 18),
+
+          // Speed Trainer Configuration Card
+          GlassCard(
+            borderColor: speedTrainer ? AppColors.purple.withValues(alpha: 0.5) : AppColors.borderSubtle,
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.trending_up_rounded,
+                  color: speedTrainer ? AppColors.purple : AppColors.textMuted,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Speed Trainer (Auto-Increment)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: speedTrainer ? AppColors.purple : Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '+${_metronomeService.speedTrainerIncrement} BPM every ${_metronomeService.speedTrainerBars} bars',
+                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: speedTrainer,
+                  activeTrackColor: AppColors.purple.withValues(alpha: 0.5),
+                  activeThumbColor: AppColors.purple,
+                  onChanged: (val) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _metronomeService.setSpeedTrainer(enabled: val));
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepButton(String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.borderSubtle),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final IconData icon;
+
+  const _SectionHeader({required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: AppColors.gold),
+        const SizedBox(width: 6),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: AppColors.gold,
+            letterSpacing: 1.1,
           ),
         ),
       ],

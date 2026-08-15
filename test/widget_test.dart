@@ -55,7 +55,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text('Chromatic Tuner'), findsOneWidget);
+    expect(find.text('Tuner'), findsOneWidget);
+    expect(find.text('Metronome'), findsOneWidget);
 
     // Tap on Settings Tab
     final settingsIcon = find.byIcon(Icons.settings_rounded).last;

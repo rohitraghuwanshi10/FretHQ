@@ -614,11 +614,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             MaterialPageRoute(builder: (context) => const TunerScreen(initialTabIndex: 0)),
                           );
                         },
-                        icon: const Icon(Icons.tune_rounded, color: AppColors.gold, size: 18),
-                        label: const Text('Guitar Tuner'),
+                        icon: const Icon(Icons.tune_rounded, color: AppColors.gold, size: 16),
+                        label: const Text('Tuner', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
@@ -626,8 +629,26 @@ class _HomeScreenState extends State<HomeScreen> {
                             MaterialPageRoute(builder: (context) => const TunerScreen(initialTabIndex: 1)),
                           );
                         },
-                        icon: const Icon(Icons.build_circle_outlined, color: AppColors.cyan, size: 18),
-                        label: const Text('Intonation Setup'),
+                        icon: const Icon(Icons.build_circle_outlined, color: AppColors.cyan, size: 16),
+                        label: const Text('Intonation', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (context) => const TunerScreen(initialTabIndex: 2)),
+                          );
+                        },
+                        icon: const Icon(Icons.speed_rounded, color: AppColors.purple, size: 16),
+                        label: const Text('Metronome', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        ),
                       ),
                     ),
                   ],
