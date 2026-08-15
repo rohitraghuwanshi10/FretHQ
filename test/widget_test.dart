@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:frethq/main.dart';
 import 'package:frethq/screens/main_shell.dart';
+import 'package:frethq/screens/settings_screen.dart';
+import 'package:frethq/services/theme_service.dart';
 import 'package:frethq/widgets/fretboard_heatmap_widget.dart';
 
 void main() {
@@ -21,7 +23,7 @@ void main() {
     expect(find.text('Identify Note'), findsOneWidget);
     expect(find.text('Find Fret Location'), findsOneWidget);
     expect(find.text('Scale & Interval Quiz'), findsOneWidget);
-    expect(find.textContaining('START'), findsWidgets);
+    expect(find.text('1m'), findsWidgets);
   });
 
   testWidgets('FretboardHeatmapWidget renders correctly with empty stats', (WidgetTester tester) async {
@@ -37,6 +39,35 @@ void main() {
     expect(find.byType(FretboardHeatmapWidget), findsOneWidget);
     expect(find.textContaining('Mastered'), findsOneWidget);
     expect(find.textContaining('Untested'), findsOneWidget);
+  });
+
+  testWidgets('ThemeService changes ThemeMode and SettingsScreen allows switching', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await ThemeService.init();
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: SettingsScreen(),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('APPEARANCE & THEME'), findsOneWidget);
+    expect(find.text('Dark'), findsOneWidget);
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('System'), findsOneWidget);
+
+    // Switch to Light mode
+    await tester.tap(find.text('Light'));
+    await tester.pump();
+
+    expect(ThemeService.themeModeNotifier.value, equals(ThemeMode.light));
+
+    // Switch back to Dark mode
+    await tester.tap(find.text('Dark'));
+    await tester.pump();
+
+    expect(ThemeService.themeModeNotifier.value, equals(ThemeMode.dark));
   });
 
   testWidgets('MainShell navigation switches tabs cleanly', (WidgetTester tester) async {

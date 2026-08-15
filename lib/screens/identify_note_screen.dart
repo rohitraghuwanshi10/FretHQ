@@ -152,7 +152,7 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
     final isLowTime = _session.secondsRemaining <= 10;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close_rounded, color: Colors.white70),
@@ -164,39 +164,42 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Top HUD
-              GlassCard(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Timer with animated indicator
-                    Row(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Top HUD
+                  GlassCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              CircularProgressIndicator(
-                                value: timerRatio,
-                                strokeWidth: 3,
-                                backgroundColor: Colors.white10,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  isLowTime ? AppColors.coral : AppColors.gold,
-                                ),
-                              ),
-                              Icon(
-                                Icons.timer_outlined,
-                                size: 14,
-                                color: isLowTime ? AppColors.coral : AppColors.gold,
-                              ),
+                        // Timer with animated indicator
+                        Row(
+                          children: [
+                            SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  CircularProgressIndicator(
+                                    value: timerRatio,
+                                    strokeWidth: 3,
+                                    backgroundColor: Colors.white10,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      isLowTime ? AppColors.coral : AppColors.primary,
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.timer_outlined,
+                                    size: 14,
+                                    color: isLowTime ? AppColors.coral : AppColors.primary,
+                                  ),
                             ],
                           ),
                         ),
@@ -313,6 +316,8 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

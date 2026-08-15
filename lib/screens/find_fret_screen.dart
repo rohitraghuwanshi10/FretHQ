@@ -170,7 +170,7 @@ class _FindFretScreenState extends State<FindFretScreen> {
     final isLowTime = _session.secondsRemaining <= 10;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close_rounded, color: Colors.white70),
@@ -182,7 +182,10 @@ class _FindFretScreenState extends State<FindFretScreen> {
         ),
       ),
       body: SafeArea(
-        child: Column(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: Column(
           children: [
             // Top HUD Bar
             Padding(
@@ -343,6 +346,8 @@ class _FindFretScreenState extends State<FindFretScreen> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

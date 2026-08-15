@@ -1,722 +1,579 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/high_score_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/database_helper.dart';
-import '../models/note.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import 'identify_note_screen.dart';
 import 'find_fret_screen.dart';
 import 'scale_quiz_screen.dart';
 import 'analytics_screen.dart';
-import 'tuner_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isEmbedded;
 
-  const HomeScreen({
-    super.key,
-    this.isEmbedded = false,
-  });
+  const HomeScreen({super.key, this.isEmbedded = false});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  int _selectedDurationMinutes = 1;
+  bool _includeAccidentals = false;
+  bool _isWeakSpotFocus = false;
+
   int _highScore = 0;
   double _bestAccuracy = 0.0;
   int _totalGames = 0;
   bool _isLoadingStats = true;
-  int _selectedDurationMinutes = 1;
-  bool _includeAccidentals = false;
-  bool _isWeakSpotFocus = false;
 
   final List<int> _durationOptions = [1, 2, 3, 5, 10];
 
   @override
   void initState() {
     super.initState();
+    _loadSavedPreferences();
     _loadStats();
   }
 
-  Future<void> _loadStats() async {
-    final score = await HighScoreService.getHighScore();
-    final accuracy = await HighScoreService.getBestAccuracy();
-    final games = await HighScoreService.getTotalGamesPlayed();
-
-    if (!mounted) return;
+  Future<void> _loadSavedPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _highScore = score;
-      _bestAccuracy = accuracy;
-      _totalGames = games;
-      _isLoadingStats = false;
+      _selectedDurationMinutes = prefs.getInt('pref_duration') ?? 1;
+      _includeAccidentals = prefs.getBool('pref_accidentals_mode') ?? false;
+      _isWeakSpotFocus = prefs.getBool('pref_weak_spots') ?? false;
     });
   }
 
-  void _navigateToGame1() async {
-    HapticFeedback.mediumImpact();
-    List<TargetPosition>? weakTargetPositions;
-
-    if (_isWeakSpotFocus) {
-      final weakList = await DatabaseHelper.instance.getWeakestPositions(limit: 10);
-      weakTargetPositions = weakList
-          .map((w) => TargetPosition(stringNumber: w.stringNumber, fretNumber: w.fretNumber))
-          .toList();
+  Future<void> _savePreference(String key, dynamic value) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (value is int) {
+      await prefs.setInt(key, value);
+    } else if (value is bool) {
+      await prefs.setBool(key, value);
     }
-
-    if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => IdentifyNoteScreen(
-          durationSeconds: _selectedDurationMinutes * 60,
-          includeAccidentals: _includeAccidentals,
-          isWeakSpotFocus: _isWeakSpotFocus,
-          weakTargetPositions: weakTargetPositions,
-        ),
-      ),
-    );
-    _loadStats();
   }
 
-  void _navigateToGame2() async {
-    HapticFeedback.mediumImpact();
-    List<TargetPosition>? weakTargetPositions;
+  Future<void> _loadStats() async {
+    final prefs = await SharedPreferences.getInstance();
+    final db = DatabaseHelper.instance;
+    final sessions = await db.getAllSessions();
 
-    if (_isWeakSpotFocus) {
-      final weakList = await DatabaseHelper.instance.getWeakestPositions(limit: 10);
-      weakTargetPositions = weakList
-          .map((w) => TargetPosition(stringNumber: w.stringNumber, fretNumber: w.fretNumber))
-          .toList();
+    int bestScore = prefs.getInt('high_score') ?? 0;
+    double bestAcc = prefs.getDouble('best_accuracy') ?? 0.0;
+
+    for (final s in sessions) {
+      if (s.score > bestScore) bestScore = s.score;
+      if (s.accuracy > bestAcc) bestAcc = s.accuracy;
     }
 
-    if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => FindFretScreen(
-          durationSeconds: _selectedDurationMinutes * 60,
-          includeAccidentals: _includeAccidentals,
-          isWeakSpotFocus: _isWeakSpotFocus,
-          weakTargetPositions: weakTargetPositions,
-        ),
-      ),
-    );
-    _loadStats();
+    if (mounted) {
+      setState(() {
+        _highScore = bestScore;
+        _bestAccuracy = bestAcc;
+        _totalGames = sessions.length;
+        _isLoadingStats = false;
+      });
+    }
   }
 
-  void _navigateToGame3() async {
+  void _navigateToGame1() {
     HapticFeedback.mediumImpact();
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ScaleQuizScreen(
-          durationSeconds: _selectedDurationMinutes * 60,
-        ),
-      ),
-    );
-    _loadStats();
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => IdentifyNoteScreen(
+              durationSeconds: _selectedDurationMinutes * 60,
+              includeAccidentals: _includeAccidentals,
+              isWeakSpotFocus: _isWeakSpotFocus,
+            ),
+          ),
+        )
+        .then((_) => _loadStats());
+  }
+
+  void _navigateToGame2() {
+    HapticFeedback.mediumImpact();
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => FindFretScreen(
+              durationSeconds: _selectedDurationMinutes * 60,
+              includeAccidentals: _includeAccidentals,
+              isWeakSpotFocus: _isWeakSpotFocus,
+            ),
+          ),
+        )
+        .then((_) => _loadStats());
+  }
+
+  void _navigateToGame3() {
+    HapticFeedback.mediumImpact();
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => ScaleQuizScreen(
+              durationSeconds: _selectedDurationMinutes * 60,
+            ),
+          ),
+        )
+        .then((_) => _loadStats());
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.textPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.textSecondary : AppColors.lightTextSecondary;
+    final surfaceElevated = isDark ? AppColors.surfaceElevated : AppColors.lightSurfaceElevated;
+    final borderSubtle = isDark ? AppColors.borderSubtle : AppColors.lightBorderSubtle;
 
-              // Header Logo & Branding
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 1. Sleek Header
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.gold.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.gold.withValues(alpha: 0.2),
-                              blurRadius: 10,
+                      Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                             ),
-                          ],
-                        ),
-                        child: const Icon(Icons.music_note_rounded, color: AppColors.gold, size: 26),
-                      ),
-                      const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            'FRET HQ',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              letterSpacing: 1.5,
-                            ),
+                            child: const Icon(Icons.music_note_rounded, color: AppColors.primary, size: 20),
                           ),
-                          Text(
-                            'Fretboard Memorization & Trainer',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'FRET HQ',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: textPrimary,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              Text(
+                                'Fretboard Mastery & Practice',
+                                style: TextStyle(fontSize: 11, color: textSecondary),
+                              ),
+                            ],
                           ),
                         ],
                       ),
+                      if (!widget.isEmbedded)
+                        IconButton(
+                          icon: const Icon(Icons.insights_rounded, size: 20),
+                          color: textSecondary,
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+                            );
+                          },
+                        ),
                     ],
                   ),
-                  GlassBadge(
-                    text: 'PRO',
-                    color: AppColors.gold,
-                    fontSize: 10,
+
+                  const SizedBox(height: 18),
+
+                  // 2. Practice Performance Summary
+                  GlassCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: _isLoadingStats
+                        ? const SizedBox(
+                            height: 48,
+                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatItem('Best Score', '$_highScore', 'notes/min', textPrimary, textSecondary),
+                              Container(height: 28, width: 1, color: borderSubtle),
+                              _buildStatItem('Accuracy', '${_bestAccuracy.toStringAsFixed(1)}%', 'best %', textPrimary, textSecondary),
+                              Container(height: 28, width: 1, color: borderSubtle),
+                              _buildStatItem('Sessions', '$_totalGames', 'completed', textPrimary, textSecondary),
+                            ],
+                          ),
                   ),
-                ],
-              ),
 
-              const SizedBox(height: 20),
+                  const SizedBox(height: 18),
 
-              // Practice Stats Summary Card
-              GlassCard(
-                gradient: AppColors.heroCardGradient,
-                borderColor: AppColors.purple.withValues(alpha: 0.4),
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // 3. Compact Practice Settings Card
+                  GlassCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          children: const [
-                            Icon(Icons.emoji_events_rounded, color: AppColors.gold, size: 18),
-                            SizedBox(width: 8),
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
                             Text(
-                              'PRACTICE PERFORMANCE',
+                              'PRACTICE SETTINGS',
                               style: TextStyle(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.gold,
-                                letterSpacing: 1.1,
+                                fontWeight: FontWeight.w700,
+                                color: textSecondary,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            Text(
+                              '${_selectedDurationMinutes}m • ${_includeAccidentals ? "Chromatic" : "Naturals"}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
                               ),
                             ),
                           ],
                         ),
-                        if (!widget.isEmbedded)
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
-                              );
-                            },
-                            child: const Text(
-                              'Details →',
-                              style: TextStyle(color: AppColors.cyan, fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
+                        const SizedBox(height: 12),
+
+                        // Mode Selector (Naturals vs Chromatics)
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: surfaceElevated,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: borderSubtle),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _isLoadingStats
-                        ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          child: Row(
                             children: [
-                              _buildStatColumn('Best Score', '$_highScore', 'Notes/min'),
-                              _buildStatColumn('Accuracy', '${_bestAccuracy.toStringAsFixed(1)}%', 'Best %'),
-                              _buildStatColumn('Tests Run', '$_totalGames', 'Completed'),
+                              Expanded(
+                                child: _buildSegmentButton(
+                                  label: 'Naturals (7 Notes)',
+                                  isSelected: !_includeAccidentals,
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() => _includeAccidentals = false);
+                                    _savePreference('pref_accidentals_mode', false);
+                                  },
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildSegmentButton(
+                                  label: 'All 12 Chromatic',
+                                  isSelected: _includeAccidentals,
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() => _includeAccidentals = true);
+                                    _savePreference('pref_accidentals_mode', true);
+                                  },
+                                ),
+                              ),
                             ],
                           ),
-                  ],
-                ),
-              ),
+                        ),
 
-              const SizedBox(height: 22),
+                        const SizedBox(height: 12),
 
-              // Global Practice Preferences Card
-              const _SectionHeader(title: 'PRACTICE CONFIGURATION', icon: Icons.tune_rounded),
-              const SizedBox(height: 10),
-
-              GlassCard(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Note Scope Toggle
-                    const Text(
-                      'NOTE SCOPE',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.gold, letterSpacing: 1.0),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _includeAccidentals = false);
-                            },
-                            borderRadius: BorderRadius.circular(10),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: !_includeAccidentals ? AppColors.gold : AppColors.surfaceElevated,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: !_includeAccidentals ? AppColors.gold : AppColors.borderSubtle,
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  Text(
-                                    'Easy Mode',
-                                    style: TextStyle(
-                                      color: !_includeAccidentals ? Colors.black : Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                        // Duration Chips & Weak Spot Toggle Row
+                        Row(
+                          children: [
+                            // Duration selection
+                            Expanded(
+                              child: Row(
+                                children: _durationOptions.map((mins) {
+                                  final isSelected = _selectedDurationMinutes == mins;
+                                  return Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                                      child: InkWell(
+                                        onTap: () {
+                                          HapticFeedback.selectionClick();
+                                          setState(() => _selectedDurationMinutes = mins);
+                                          _savePreference('pref_duration', mins);
+                                        },
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 150),
+                                          padding: const EdgeInsets.symmetric(vertical: 7),
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? AppColors.primary : surfaceElevated,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: isSelected ? AppColors.primary : borderSubtle,
+                                            ),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              '${mins}m',
+                                              style: TextStyle(
+                                                color: isSelected ? Colors.white : textSecondary,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '7 Naturals (C, D, E, F, G, A, B)',
-                                    style: TextStyle(
-                                      color: !_includeAccidentals ? Colors.black87 : AppColors.textMuted,
-                                      fontSize: 9,
-                                    ),
-                                  ),
-                                ],
+                                  );
+                                }).toList(),
                               ),
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _includeAccidentals = true);
-                            },
-                            borderRadius: BorderRadius.circular(10),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: _includeAccidentals ? AppColors.gold : AppColors.surfaceElevated,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: _includeAccidentals ? AppColors.gold : AppColors.borderSubtle,
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  Text(
-                                    'Full Mode',
-                                    style: TextStyle(
-                                      color: _includeAccidentals ? Colors.black : Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'All 12 Chromatic Notes',
-                                    style: TextStyle(
-                                      color: _includeAccidentals ? Colors.black87 : AppColors.textMuted,
-                                      fontSize: 9,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
 
-                    const SizedBox(height: 14),
+                        const SizedBox(height: 10),
 
-                    // Adaptive Weak Spot Toggle
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceElevated,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _isWeakSpotFocus ? AppColors.coral.withValues(alpha: 0.5) : AppColors.borderSubtle,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.center_focus_strong_rounded,
-                            color: _isWeakSpotFocus ? AppColors.coral : AppColors.textMuted,
-                            size: 22,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        // Adaptive Weak Spot switch
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _isWeakSpotFocus = !_isWeakSpotFocus);
+                            _savePreference('pref_weak_spots', _isWeakSpotFocus);
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                            child: Row(
                               children: [
-                                Text(
-                                  'Adaptive Weak Spot Focus',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: _isWeakSpotFocus ? AppColors.coral : Colors.white,
+                                Icon(
+                                  Icons.center_focus_strong_rounded,
+                                  size: 16,
+                                  color: _isWeakSpotFocus ? AppColors.primary : textSecondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Adaptive Weak Spot Focus',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: _isWeakSpotFocus ? textPrimary : textSecondary,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 1),
-                                const Text(
-                                  'Target frets you miss most often based on history',
-                                  style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                                SizedBox(
+                                  height: 24,
+                                  child: Switch(
+                                    value: _isWeakSpotFocus,
+                                    activeColor: AppColors.primary,
+                                    onChanged: (val) {
+                                      HapticFeedback.selectionClick();
+                                      setState(() => _isWeakSpotFocus = val);
+                                      _savePreference('pref_weak_spots', val);
+                                    },
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          Switch(
-                            value: _isWeakSpotFocus,
-                            activeColor: AppColors.coral,
-                            onChanged: (val) {
-                              HapticFeedback.selectionClick();
-                              setState(() => _isWeakSpotFocus = val);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // Test Duration Chips
-                    const Text(
-                      'TEST DURATION',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.gold, letterSpacing: 1.0),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: _durationOptions.map((mins) {
-                        final isSelected = _selectedDurationMinutes == mins;
-                        return Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                            child: InkWell(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(() => _selectedDurationMinutes = mins);
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 150),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? AppColors.gold : AppColors.surfaceElevated,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: isSelected ? AppColors.gold : AppColors.borderSubtle,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${mins}m',
-                                    style: TextStyle(
-                                      color: isSelected ? Colors.black : Colors.white70,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Training Games Section
-              const _SectionHeader(title: 'TRAINING GAMES', icon: Icons.sports_esports_rounded),
-              const SizedBox(height: 12),
-
-              // Game 1: Identify Note
-              GlassCard(
-                borderColor: AppColors.gold.withValues(alpha: 0.4),
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GlassBadge(text: 'GAME 1', color: AppColors.gold),
-                        Row(
-                          children: [
-                            GlassBadge(
-                              text: _includeAccidentals ? 'Full Mode' : 'Easy Mode',
-                              color: _includeAccidentals ? AppColors.gold : AppColors.emerald,
-                              fontSize: 9,
-                            ),
-                            if (_isWeakSpotFocus) ...[
-                              const SizedBox(width: 4),
-                              GlassBadge(text: 'Adaptive', color: AppColors.coral, fontSize: 9),
-                            ],
-                          ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Identify Note',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 4. Training Games (Clean, Uncluttered List)
+                  Text(
+                    'TRAINING MODES',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: textSecondary,
+                      letterSpacing: 0.8,
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'A position is highlighted on the 6-string guitar neck. Identify the note name as fast as possible.',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.3),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _navigateToGame1,
-                        icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                        label: Text('START IDENTIFY NOTE (${_selectedDurationMinutes}M)'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.gold,
-                          foregroundColor: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  _buildGameCard(
+                    title: 'Identify Note',
+                    subtitle: 'A fret is highlighted. Name the note as fast as you can.',
+                    icon: Icons.visibility_outlined,
+                    accentColor: AppColors.primary,
+                    onTap: _navigateToGame1,
+                  ),
+                  const SizedBox(height: 10),
+
+                  _buildGameCard(
+                    title: 'Find Fret Location',
+                    subtitle: 'Given a target note & string, tap the correct fret position.',
+                    icon: Icons.touch_app_outlined,
+                    accentColor: AppColors.cyan,
+                    onTap: _navigateToGame2,
+                  ),
+                  const SizedBox(height: 10),
+
+                  _buildGameCard(
+                    title: 'Scale & Interval Quiz',
+                    subtitle: 'Recognize intervals, 3rds, 5ths, and scale degrees.',
+                    icon: Icons.auto_stories_outlined,
+                    accentColor: AppColors.purple,
+                    onTap: _navigateToGame3,
+                  ),
+
+                  const SizedBox(height: 24),
+                ],
               ),
-
-              const SizedBox(height: 14),
-
-              // Game 2: Find Fret Location
-              GlassCard(
-                borderColor: AppColors.cyan.withValues(alpha: 0.4),
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GlassBadge(text: 'GAME 2', color: AppColors.cyan),
-                        Row(
-                          children: [
-                            GlassBadge(
-                              text: _includeAccidentals ? 'Full Mode' : 'Easy Mode',
-                              color: _includeAccidentals ? AppColors.gold : AppColors.emerald,
-                              fontSize: 9,
-                            ),
-                            if (_isWeakSpotFocus) ...[
-                              const SizedBox(width: 4),
-                              GlassBadge(text: 'Adaptive', color: AppColors.coral, fontSize: 9),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Find Fret Location',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Given a target note and string, tap its exact fret position on the interactive guitar neck.',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.3),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _navigateToGame2,
-                        icon: const Icon(Icons.touch_app_rounded, size: 20),
-                        label: Text('START FIND FRET (${_selectedDurationMinutes}M)'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.cyan,
-                          foregroundColor: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // Game 3: Scale & Interval Quiz
-              GlassCard(
-                borderColor: AppColors.purple.withValues(alpha: 0.4),
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GlassBadge(text: 'GAME 3', color: AppColors.purple),
-                        GlassBadge(text: 'Theory', color: AppColors.purple, fontSize: 9),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Scale & Interval Quiz',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Master 3rds, 5ths, octaves, and scale notes across the neck with rapid interval ear & fret recognition.',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.3),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _navigateToGame3,
-                        icon: const Icon(Icons.psychology_rounded, size: 20),
-                        label: Text('START SCALE QUIZ (${_selectedDurationMinutes}M)'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.purple,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              if (!widget.isEmbedded) ...[
-                const SizedBox(height: 24),
-                // Guitar Tools Section if not embedded in bottom nav
-                const _SectionHeader(title: 'GUITAR UTILITIES', icon: Icons.build_circle_outlined),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (context) => const TunerScreen(initialTabIndex: 0)),
-                          );
-                        },
-                        icon: const Icon(Icons.tune_rounded, color: AppColors.gold, size: 16),
-                        label: const Text('Tuner', style: TextStyle(fontSize: 12)),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (context) => const TunerScreen(initialTabIndex: 1)),
-                          );
-                        },
-                        icon: const Icon(Icons.build_circle_outlined, color: AppColors.cyan, size: 16),
-                        label: const Text('Intonation', style: TextStyle(fontSize: 12)),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (context) => const TunerScreen(initialTabIndex: 2)),
-                          );
-                        },
-                        icon: const Icon(Icons.speed_rounded, color: AppColors.purple, size: 16),
-                        label: const Text('Metronome', style: TextStyle(fontSize: 12)),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildStatColumn(String title, String value, String sub) {
+  Widget _buildStatItem(String label, String value, String unit, Color primaryColor, Color secondaryColor) {
     return Column(
       children: [
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 22,
+          style: TextStyle(
+            fontSize: 20,
             fontWeight: FontWeight.w900,
-            color: Colors.white,
+            color: primaryColor,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 2),
         Text(
-          title,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        Text(
-          sub,
-          style: const TextStyle(
+          label,
+          style: TextStyle(
             fontSize: 10,
-            color: AppColors.textMuted,
+            fontWeight: FontWeight.w700,
+            color: secondaryColor,
           ),
         ),
       ],
     );
   }
-}
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
+  Widget _buildSegmentButton({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: AppColors.gold),
-        const SizedBox(width: 6),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            color: AppColors.gold,
-            letterSpacing: 1.1,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? AppColors.surfaceLight : Colors.white)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : [],
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              color: isSelected
+                  ? (isDark ? Colors.white : AppColors.lightTextPrimary)
+                  : AppColors.textMuted,
+            ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildGameCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.textPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.textSecondary : AppColors.lightTextSecondary;
+
+    return GlassCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+            ),
+            child: Icon(icon, color: accentColor, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: textSecondary,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton(
+            onPressed: onTap,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              minimumSize: const Size(0, 34),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.play_arrow_rounded, size: 16),
+                const SizedBox(width: 2),
+                Text(
+                  '${_selectedDurationMinutes}m',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

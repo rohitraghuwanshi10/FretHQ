@@ -60,12 +60,14 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
     final maxStreak = widget.session.maxStreak;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-            child: Column(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Header badge
@@ -346,7 +348,8 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildStatItem(String label, String value, IconData icon, Color color) {

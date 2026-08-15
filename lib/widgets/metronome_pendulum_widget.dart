@@ -108,11 +108,11 @@ class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with 
   Color _getAccentColor(BeatAccent accent) {
     switch (accent) {
       case BeatAccent.strong:
-        return AppColors.gold;
+        return AppColors.primary;
       case BeatAccent.medium:
         return AppColors.cyan;
       case BeatAccent.normal:
-        return AppColors.emerald;
+        return AppColors.purple;
       case BeatAccent.mute:
         return Colors.grey.shade600;
     }
@@ -132,7 +132,7 @@ class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with 
 
     return GlassCard(
       gradient: AppColors.heroCardGradient,
-      borderColor: isPlaying ? AppColors.gold.withValues(alpha: 0.5) : AppColors.borderMedium,
+      borderColor: isPlaying ? AppColors.primary.withValues(alpha: 0.5) : AppColors.borderMedium,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         children: [
@@ -182,7 +182,7 @@ class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with 
                         fontSize: isCurrent ? 12 : 10,
                         fontWeight: FontWeight.w900,
                         color: isCurrent
-                            ? Colors.black
+                            ? Colors.white
                             : (accent == BeatAccent.mute ? Colors.white24 : Colors.white),
                       ),
                     ),
@@ -224,7 +224,7 @@ class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with 
                       style: TextStyle(
                         fontSize: 52,
                         fontWeight: FontWeight.w900,
-                        color: isPlaying ? AppColors.gold : Colors.white,
+                        color: isPlaying ? AppColors.primary : Colors.white,
                         letterSpacing: -1.0,
                         height: 1.0,
                       ),

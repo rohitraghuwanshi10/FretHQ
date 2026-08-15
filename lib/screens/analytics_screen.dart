@@ -67,7 +67,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: widget.isEmbedded
             ? null
@@ -87,11 +87,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ? const Center(child: CircularProgressIndicator(color: AppColors.purple))
           : RefreshIndicator(
               onRefresh: _loadAnalytics,
-              color: AppColors.purple,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
-                child: Column(
+              color: AppColors.primary,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 580),
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
+                    child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Section 1: Overview Summary Metrics
@@ -404,6 +407,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
               ),
             ),
+          ),
+        ),
     );
   }
 

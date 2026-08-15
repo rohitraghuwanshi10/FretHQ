@@ -167,7 +167,7 @@ class _ScaleQuizScreenState extends State<ScaleQuizScreen> {
     final isLowTime = _session.secondsRemaining <= 10;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close_rounded, color: Colors.white70),
@@ -179,9 +179,12 @@ class _ScaleQuizScreenState extends State<ScaleQuizScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 10.0),
-          child: Column(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 10.0),
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Top HUD
@@ -279,42 +282,43 @@ class _ScaleQuizScreenState extends State<ScaleQuizScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 10,
+                      runSpacing: 8,
                       children: [
                         // Root Note
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
-                            color: AppColors.gold.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.gold, width: 1.5),
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.primary, width: 1.2),
                           ),
                           child: Text(
                             _currentRootNote.displayName,
                             style: const TextStyle(
-                              fontSize: 28,
+                              fontSize: 24,
                               fontWeight: FontWeight.w900,
-                              color: AppColors.gold,
+                              color: AppColors.primary,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        const Icon(Icons.add_rounded, color: Colors.white54, size: 24),
-                        const SizedBox(width: 14),
+                        const Icon(Icons.add_rounded, color: Colors.white54, size: 20),
 
                         // Interval
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
                             color: AppColors.purple.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.purple, width: 1.5),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.purple, width: 1.2),
                           ),
                           child: Text(
                             _currentInterval.name,
                             style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.w900,
                               color: AppColors.purple,
                             ),
@@ -347,6 +351,8 @@ class _ScaleQuizScreenState extends State<ScaleQuizScreen> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

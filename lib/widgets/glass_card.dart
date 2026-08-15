@@ -32,9 +32,26 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveBorderColor = borderColor ?? AppColors.borderSubtle;
-    final effectiveGradient = gradient ?? AppColors.surfaceGradient;
-    final effectiveBg = backgroundColor ?? AppColors.surfaceGlass;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveBorderColor = borderColor ?? (isDark ? AppColors.borderSubtle : AppColors.lightBorderSubtle);
+    final effectiveGradient = gradient ?? (isDark ? AppColors.surfaceGradient : AppColors.lightSurfaceGradient);
+    final effectiveBg = backgroundColor ?? (isDark ? AppColors.surfaceGlass : AppColors.lightSurfaceGlass);
+
+    final defaultShadows = isDark
+        ? [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ]
+        : [
+            BoxShadow(
+              color: const Color(0x140F172A),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ];
 
     Widget cardContent = Container(
       padding: padding ?? const EdgeInsets.all(18),
@@ -43,14 +60,7 @@ class GlassCard extends StatelessWidget {
         gradient: effectiveGradient,
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(color: effectiveBorderColor, width: borderWidth),
-        boxShadow: shadows ??
-            [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
+        boxShadow: shadows ?? defaultShadows,
       ),
       child: Material(
         color: Colors.transparent,

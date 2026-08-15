@@ -142,7 +142,7 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: widget.isEmbedded
             ? null
@@ -153,11 +153,11 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
         title: const Text('Guitar Tools & Diagnostics'),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppColors.gold,
-          labelColor: AppColors.gold,
+          indicatorColor: AppColors.primary,
+          labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textMuted,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+          indicatorWeight: 2.5,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
           tabs: const [
             Tab(icon: Icon(Icons.tune_rounded, size: 18), text: 'Tuner'),
             Tab(icon: Icon(Icons.build_circle_outlined, size: 18), text: 'Intonation'),

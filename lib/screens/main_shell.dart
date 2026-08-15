@@ -44,7 +44,7 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
@@ -54,34 +54,52 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildFloatingNavBar() {
-    return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        height: 64,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceGlass,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.borderMedium, width: 1.2),
-          boxShadow: [
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final navBg = isDark ? AppColors.surfaceGlass : AppColors.lightSurfaceGlass;
+    final navBorder = isDark ? AppColors.borderMedium : AppColors.lightBorderMedium;
+    final navShadow = isDark
+        ? [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.45),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.fitness_center_rounded, 'Train', AppColors.gold),
-                _buildNavItem(1, Icons.tune_rounded, 'Tools', AppColors.cyan),
-                _buildNavItem(2, Icons.insights_rounded, 'Analytics', AppColors.purple),
-                _buildNavItem(3, Icons.settings_rounded, 'Settings', AppColors.emerald),
-              ],
+          ]
+        : [
+            BoxShadow(
+              color: const Color(0x1F0F172A),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ];
+
+    return SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            height: 60,
+            decoration: BoxDecoration(
+              color: navBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: navBorder, width: 1.0),
+              boxShadow: navShadow,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildNavItem(0, Icons.fitness_center_rounded, 'Train', AppColors.primary),
+                    _buildNavItem(1, Icons.tune_rounded, 'Tools', AppColors.cyan),
+                    _buildNavItem(2, Icons.insights_rounded, 'Analytics', AppColors.purple),
+                    _buildNavItem(3, Icons.settings_rounded, 'Settings', AppColors.emerald),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -91,19 +109,20 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildNavItem(int index, IconData icon, String label, Color activeColor) {
     final isSelected = _currentIndex == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () => _onTabTapped(index),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? activeColor.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          color: isSelected ? activeColor.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? activeColor.withValues(alpha: 0.4) : Colors.transparent,
+            color: isSelected ? activeColor.withValues(alpha: 0.3) : Colors.transparent,
           ),
         ),
         child: Row(
@@ -111,8 +130,8 @@ class _MainShellState extends State<MainShell> {
           children: [
             Icon(
               icon,
-              color: isSelected ? activeColor : AppColors.textMuted,
-              size: 22,
+              color: isSelected ? activeColor : (isDark ? AppColors.textMuted : AppColors.lightTextSecondary),
+              size: 20,
             ),
             if (isSelected) ...[
               const SizedBox(width: 6),
@@ -120,9 +139,9 @@ class _MainShellState extends State<MainShell> {
                 label,
                 style: TextStyle(
                   color: activeColor,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   fontSize: 12,
-                  letterSpacing: 0.3,
+                  letterSpacing: 0.2,
                 ),
               ),
             ],

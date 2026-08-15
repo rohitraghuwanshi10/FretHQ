@@ -189,6 +189,11 @@ class DatabaseHelper {
     return maps.map((map) => SessionSummary.fromMap(map)).toList();
   }
 
+  /// Returns all session history
+  Future<List<SessionSummary>> getAllSessions() async {
+    return getSessionHistory(limit: 500);
+  }
+
   /// Returns fret positions sorted by highest error rate / wrong answers count
   Future<List<WeakPosition>> getWeakestPositions({int limit = 10}) async {
     final db = await database;
