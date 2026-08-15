@@ -125,14 +125,9 @@ class PitchService {
   }
 
   final List<int> _audioAccumulator = [];
-  int _receivedChunkCount = 0;
 
   void _processAudioBuffer(Uint8List chunk) {
     if (chunk.isEmpty) return;
-    _receivedChunkCount++;
-    if (_receivedChunkCount % 20 == 0) {
-      debugPrint('PitchService: Received chunk #$_receivedChunkCount, size: ${chunk.length} bytes (buffer total: ${_audioAccumulator.length})');
-    }
     _audioAccumulator.addAll(chunk);
 
     // 2048 16-bit PCM samples = 4096 bytes required by PitchDetector
@@ -140,12 +135,15 @@ class PitchService {
 
     while (_audioAccumulator.length >= targetByteLength) {
       final pcmSlice = Uint8List.fromList(_audioAccumulator.sublist(0, targetByteLength));
-      _audioAccumulator.removeRange(0, 2048); // 50% overlap
+      _audioAccumulator.removeRange(0, 2048); // 50% overlap for responsive tracking
 
       _analyzePcmBuffer(pcmSlice);
     }
   }
 
+  // Pitch stabilization pipeline buffers
+  final List<double> _pitchHistory = [];
+  double _lockedFundamental = 0.0;
   double _smoothedFreq = 0.0;
   DateTime? _lastValidPitchTime;
 
@@ -164,9 +162,12 @@ class PitchService {
 
     final double rms = sqrt(sumSquare / (samplesCount > 0 ? samplesCount : 1));
 
-    // Noise gate threshold: RMS >= 0.015 (~ -36 dB)
-    if (rms < 0.015) {
-      if (_lastValidPitchTime != null && DateTime.now().difference(_lastValidPitchTime!).inMilliseconds > 1500) {
+    // Dynamic noise floor gate: RMS >= 0.018 (~ -35 dB)
+    if (rms < 0.018) {
+      if (_lastValidPitchTime != null &&
+          DateTime.now().difference(_lastValidPitchTime!).inMilliseconds > 900) {
+        _pitchHistory.clear();
+        _lockedFundamental = 0.0;
         _smoothedFreq = 0.0;
         _pitchController.add(TunerNote.fromFrequency(0));
       }
@@ -175,14 +176,31 @@ class PitchService {
 
     try {
       final result = await _pitchDetector.getPitchFromFloatBuffer(floatList);
-      if (result.pitch >= 60 && result.pitch <= 1000 && (result.pitched || result.probability >= 0.65)) {
+      final rawPitch = result.pitch;
+
+      // Filter: guitar frequency range (65 Hz to 1200 Hz) with high confidence
+      if (rawPitch >= 65 && rawPitch <= 1200 && (result.pitched || result.probability >= 0.72)) {
         _lastValidPitchTime = DateTime.now();
 
-        // Exponential Moving Average (EMA) for butter-smooth tuner needle movement
-        if (_smoothedFreq == 0.0 || (_smoothedFreq - result.pitch).abs() > 35) {
-          _smoothedFreq = result.pitch;
+        // 1. Harmonic Disambiguation (prevent jumping to 2nd/3rd harmonics or subharmonics)
+        final resolvedPitch = _resolveHarmonics(rawPitch, _lockedFundamental);
+
+        // 2. Rolling Median Filter to reject attack noise transients and outlier spikes
+        _pitchHistory.add(resolvedPitch);
+        if (_pitchHistory.length > 5) {
+          _pitchHistory.removeAt(0);
+        }
+        final medianPitch = _computeMedian(_pitchHistory);
+
+        // 3. Note Lock & Low-Pass Smoothing
+        if (_lockedFundamental == 0.0 || (medianPitch - _lockedFundamental).abs() > 45) {
+          // New string or fret note plucked
+          _lockedFundamental = medianPitch;
+          _smoothedFreq = medianPitch;
         } else {
-          _smoothedFreq = 0.35 * result.pitch + 0.65 * _smoothedFreq;
+          // Note sustaining: gentle Low-Pass filter for stable, jitter-free needle
+          _smoothedFreq = 0.30 * medianPitch + 0.70 * _smoothedFreq;
+          _lockedFundamental = _smoothedFreq;
         }
 
         final tunerNote = TunerNote.fromFrequency(_smoothedFreq);
@@ -190,6 +208,40 @@ class PitchService {
       }
     } catch (e) {
       debugPrint('Pitch processing error: $e');
+    }
+  }
+
+  /// Harmonic Disambiguation: Detects if detected frequency is a harmonic overtone
+  /// (2x octave, 3x fifth, 4x double octave) of the currently vibrating string.
+  double _resolveHarmonics(double detected, double currentFundamental) {
+    if (currentFundamental <= 0) return detected;
+
+    // Check if detected is 2x or 3x harmonic of current fundamental
+    for (int multiplier = 2; multiplier <= 4; multiplier++) {
+      final harmonic = currentFundamental * multiplier;
+      if ((detected - harmonic).abs() / harmonic < 0.05) {
+        return currentFundamental; // Lock to fundamental
+      }
+    }
+
+    // Check if current is 2x harmonic of detected (subharmonic resolution)
+    final subHarmonic = currentFundamental / 2.0;
+    if ((detected - subHarmonic).abs() / subHarmonic < 0.05 && detected >= 70.0) {
+      return detected;
+    }
+
+    return detected;
+  }
+
+  /// Computes median of recent pitch samples
+  double _computeMedian(List<double> list) {
+    if (list.isEmpty) return 0.0;
+    final sorted = List<double>.from(list)..sort();
+    final middle = sorted.length ~/ 2;
+    if (sorted.length % 2 == 1) {
+      return sorted[middle];
+    } else {
+      return (sorted[middle - 1] + sorted[middle]) / 2.0;
     }
   }
 
@@ -210,6 +262,9 @@ class PitchService {
       debugPrint('PitchService stop error: $e');
     } finally {
       _isListening = false;
+      _pitchHistory.clear();
+      _lockedFundamental = 0.0;
+      _smoothedFreq = 0.0;
     }
   }
 

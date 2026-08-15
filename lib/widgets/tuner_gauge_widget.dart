@@ -53,13 +53,20 @@ class TunerGaugeWidget extends StatelessWidget {
         children: [
           // Gauge Arc & Animated Needle
           Expanded(
-            child: CustomPaint(
-              size: const Size(double.infinity, double.infinity),
-              painter: _PhotorealisticGaugePainter(
-                centsOffset: cents,
-                stateColor: stateColor,
-                isInTune: isInTune,
-              ),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(end: cents),
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOutCubic,
+              builder: (context, animatedCents, child) {
+                return CustomPaint(
+                  size: const Size(double.infinity, double.infinity),
+                  painter: _PhotorealisticGaugePainter(
+                    centsOffset: animatedCents,
+                    stateColor: stateColor,
+                    isInTune: isInTune,
+                  ),
+                );
+              },
             ),
           ),
 
