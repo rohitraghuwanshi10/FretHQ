@@ -420,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     onTap: _navigateToGame3,
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 80),
                 ],
               ),
             ),

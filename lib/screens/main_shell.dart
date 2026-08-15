@@ -74,30 +74,33 @@ class _MainShellState extends State<MainShell> {
           ];
 
     return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 580),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            height: 60,
-            decoration: BoxDecoration(
-              color: navBg,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: navBorder, width: 1.0),
-              boxShadow: navShadow,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildNavItem(0, Icons.fitness_center_rounded, 'Train', AppColors.primary),
-                    _buildNavItem(1, Icons.tune_rounded, 'Tools', AppColors.cyan),
-                    _buildNavItem(2, Icons.insights_rounded, 'Analytics', AppColors.purple),
-                    _buildNavItem(3, Icons.settings_rounded, 'Settings', AppColors.emerald),
-                  ],
+      child: SizedBox(
+        height: 76,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              height: 56,
+              decoration: BoxDecoration(
+                color: navBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: navBorder, width: 1.0),
+                boxShadow: navShadow,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNavItem(0, Icons.fitness_center_rounded, 'Train', AppColors.primary),
+                      _buildNavItem(1, Icons.tune_rounded, 'Tools', AppColors.cyan),
+                      _buildNavItem(2, Icons.insights_rounded, 'Analytics', AppColors.purple),
+                      _buildNavItem(3, Icons.settings_rounded, 'Settings', AppColors.emerald),
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -402,7 +402,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         },
                       ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 80),
                   ],
                 ),
               ),
