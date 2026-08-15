@@ -21,15 +21,21 @@ class MetronomePendulumWidget extends StatefulWidget {
 class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with SingleTickerProviderStateMixin {
   late AnimationController _pendulumAnimController;
   StreamSubscription<MetronomeTickEvent>? _tickSubscription;
+  StreamSubscription<int?>? _timerSubscription;
+
   int _activeBeat = -1;
   int _activeSubdivision = -1;
   BeatAccent _activeAccent = BeatAccent.normal;
+  int? _remainingSeconds;
 
   @override
   void initState() {
     super.initState();
     _initAnimation();
     _subscribeToTicks();
+    _remainingSeconds = widget.metronomeService.timerDurationSeconds != null
+        ? widget.metronomeService.remainingSeconds
+        : null;
   }
 
   void _initAnimation() {
@@ -65,6 +71,13 @@ class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with 
         _pendulumAnimController.repeat(reverse: true);
       }
     });
+
+    _timerSubscription = widget.metronomeService.timerStream.listen((seconds) {
+      if (!mounted) return;
+      setState(() {
+        _remainingSeconds = seconds;
+      });
+    });
   }
 
   @override
@@ -87,6 +100,7 @@ class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with 
   @override
   void dispose() {
     _tickSubscription?.cancel();
+    _timerSubscription?.cancel();
     _pendulumAnimController.dispose();
     super.dispose();
   }
@@ -112,10 +126,14 @@ class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with 
     final timeSig = widget.metronomeService.timeSignature;
     final accents = widget.metronomeService.accents;
 
+    final hasTimer = _remainingSeconds != null;
+    final mins = hasTimer ? (_remainingSeconds! ~/ 60).toString().padLeft(2, '0') : '00';
+    final secs = hasTimer ? (_remainingSeconds! % 60).toString().padLeft(2, '0') : '00';
+
     return GlassCard(
       gradient: AppColors.heroCardGradient,
       borderColor: isPlaying ? AppColors.gold.withValues(alpha: 0.5) : AppColors.borderMedium,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         children: [
           // 1. LED Beat Indicator Strip
@@ -174,11 +192,11 @@ class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with 
             }),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // 2. Pendulum & Digital BPM Hero
           SizedBox(
-            height: 160,
+            height: 155,
             child: Stack(
               alignment: Alignment.center,
               children: [
@@ -187,7 +205,7 @@ class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with 
                   animation: _pendulumAnimController,
                   builder: (context, child) {
                     return CustomPaint(
-                      size: const Size(double.infinity, 160),
+                      size: const Size(double.infinity, 155),
                       painter: _PendulumPainter(
                         progress: isPlaying ? _pendulumAnimController.value : 0.5,
                         activeColor: isPlaying ? _getAccentColor(_activeAccent) : AppColors.textMuted,
@@ -204,7 +222,7 @@ class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with 
                     Text(
                       '$bpm',
                       style: TextStyle(
-                        fontSize: 54,
+                        fontSize: 52,
                         fontWeight: FontWeight.w900,
                         color: isPlaying ? AppColors.gold : Colors.white,
                         letterSpacing: -1.0,
@@ -215,18 +233,32 @@ class _MetronomePendulumWidgetState extends State<MetronomePendulumWidget> with 
                     Text(
                       'BPM',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w800,
                         color: Colors.grey.shade400,
                         letterSpacing: 1.5,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    GlassBadge(
-                      text: '${tempoMarking.italianName.toUpperCase()} • ${tempoMarking.englishDescription}',
-                      color: AppColors.cyan,
-                      fontSize: 10,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GlassBadge(
+                          text: '${tempoMarking.italianName.toUpperCase()} • ${tempoMarking.englishDescription}',
+                          color: AppColors.cyan,
+                          fontSize: 9,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        ),
+                        if (hasTimer) ...[
+                          const SizedBox(width: 6),
+                          GlassBadge(
+                            text: '⏱️ $mins:$secs',
+                            color: isPlaying ? AppColors.gold : AppColors.emerald,
+                            fontSize: 9,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -256,7 +288,7 @@ class _PendulumPainter extends CustomPainter {
     const maxAngle = pi * 0.22; // ~40 degrees swing
     final currentAngle = (progress - 0.5) * 2.0 * maxAngle;
 
-    const armLength = 135.0;
+    const armLength = 130.0;
     final bobPosition = Offset(
       pivot.dx + armLength * sin(currentAngle),
       pivot.dy + armLength * cos(currentAngle),

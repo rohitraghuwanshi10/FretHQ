@@ -102,6 +102,13 @@ class MetronomeService {
   List<BeatAccent> _accents = List.from(TimeSignaturePreset.presets[0].defaultAccents);
   Subdivision _subdivision = Subdivision.quarter;
 
+  // Practice Timer
+  int? _timerDurationSeconds; // null = continuous
+  int _remainingSeconds = 0;
+  Timer? _countdownTimer;
+  final _timerController = StreamController<int?>.broadcast();
+  Stream<int?> get timerStream => _timerController.stream;
+
   // Speed Trainer
   bool _speedTrainerEnabled = false;
   int _speedTrainerIncrement = 2; // +2 BPM
@@ -129,6 +136,8 @@ class MetronomeService {
   TimeSignaturePreset get timeSignature => _timeSignature;
   List<BeatAccent> get accents => List.unmodifiable(_accents);
   Subdivision get subdivision => _subdivision;
+  int? get timerDurationSeconds => _timerDurationSeconds;
+  int get remainingSeconds => _remainingSeconds;
   bool get speedTrainerEnabled => _speedTrainerEnabled;
   int get speedTrainerIncrement => _speedTrainerIncrement;
   int get speedTrainerBars => _speedTrainerBars;
@@ -187,6 +196,22 @@ class MetronomeService {
     }
   }
 
+  void setTimerDuration(int? seconds) {
+    _timerDurationSeconds = seconds;
+    if (seconds != null) {
+      _remainingSeconds = seconds;
+      _timerController.add(_remainingSeconds);
+      if (_isPlaying) {
+        _startCountdown();
+      }
+    } else {
+      _countdownTimer?.cancel();
+      _countdownTimer = null;
+      _remainingSeconds = 0;
+      _timerController.add(null);
+    }
+  }
+
   void setSpeedTrainer({
     required bool enabled,
     int? increment,
@@ -213,14 +238,48 @@ class MetronomeService {
     _currentSubdivision = 0;
     _restartTimer();
     _handleTick(); // Immediate first tick
+
+    if (_timerDurationSeconds != null) {
+      _remainingSeconds = _timerDurationSeconds!;
+      _startCountdown();
+    } else {
+      _timerController.add(null);
+    }
+  }
+
+  void _startCountdown() {
+    _countdownTimer?.cancel();
+    if (_timerDurationSeconds == null) return;
+
+    _timerController.add(_remainingSeconds);
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!_isPlaying) {
+        t.cancel();
+        return;
+      }
+      _remainingSeconds--;
+      _timerController.add(_remainingSeconds);
+
+      if (_remainingSeconds <= 0) {
+        t.cancel();
+        stop();
+        if (_hapticsEnabled) {
+          HapticFeedback.heavyImpact();
+        }
+      }
+    });
   }
 
   void stop() {
     _isPlaying = false;
     _timer?.cancel();
     _timer = null;
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
     _currentBeat = 0;
     _currentSubdivision = 0;
+    _remainingSeconds = _timerDurationSeconds ?? 0;
+    _timerController.add(_timerDurationSeconds != null ? _remainingSeconds : null);
   }
 
   void togglePlay() {
@@ -342,7 +401,9 @@ class MetronomeService {
 
   void dispose() {
     _timer?.cancel();
+    _countdownTimer?.cancel();
     _audioEngine.dispose();
     _tickController.close();
+    _timerController.close();
   }
 }

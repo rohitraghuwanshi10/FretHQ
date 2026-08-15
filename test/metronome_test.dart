@@ -72,6 +72,7 @@ void main() {
       service.setTimeSignature(TimeSignaturePreset.presets[0]); // 4/4
       service.setSubdivision(Subdivision.quarter);
       service.setSpeedTrainer(enabled: false);
+      service.setTimerDuration(null);
     });
 
     tearDown(() {
@@ -119,6 +120,15 @@ void main() {
       service.stop();
       expect(service.isPlaying, isFalse);
     });
+
+    test('Practice timer duration initializes and countdown updates', () {
+      service.setTimerDuration(300); // 5 minutes
+      expect(service.timerDurationSeconds, equals(300));
+      expect(service.remainingSeconds, equals(300));
+
+      service.setTimerDuration(null); // Continuous
+      expect(service.timerDurationSeconds, isNull);
+    });
   });
 
   group('Metronome Widget Tests', () {
@@ -141,7 +151,7 @@ void main() {
       expect(find.byType(MetronomePendulumWidget), findsOneWidget);
     });
 
-    testWidgets('TunerScreen renders Metronome tab with steppers and time signatures', (WidgetTester tester) async {
+    testWidgets('TunerScreen renders Metronome tab with steppers, timer chips, and time signatures', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: TunerScreen(initialTabIndex: 2), // Open directly to Metronome tab
@@ -156,6 +166,9 @@ void main() {
       expect(find.text('4/4'), findsOneWidget);
       expect(find.text('3/4'), findsOneWidget);
       expect(find.text('6/8'), findsOneWidget);
+      expect(find.text('PRACTICE TIMER (AUTO-STOP)'), findsOneWidget);
+      expect(find.text('∞ Continuous'), findsOneWidget);
+      expect(find.text('5 min'), findsOneWidget);
       expect(find.text('Speed Trainer (Auto-Increment)'), findsOneWidget);
     });
   });

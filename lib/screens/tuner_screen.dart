@@ -744,6 +744,27 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
 
           const SizedBox(height: 18),
 
+          // Practice Timer Selection
+          const _SectionHeader(title: 'PRACTICE TIMER (AUTO-STOP)', icon: Icons.timer_outlined),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildTimerChip('∞ Continuous', null, _metronomeService.timerDurationSeconds == null),
+                _buildTimerChip('1 min', 60, _metronomeService.timerDurationSeconds == 60),
+                _buildTimerChip('2 min', 120, _metronomeService.timerDurationSeconds == 120),
+                _buildTimerChip('3 min', 180, _metronomeService.timerDurationSeconds == 180),
+                _buildTimerChip('5 min', 300, _metronomeService.timerDurationSeconds == 300),
+                _buildTimerChip('10 min', 600, _metronomeService.timerDurationSeconds == 600),
+                _buildTimerChip('15 min', 900, _metronomeService.timerDurationSeconds == 900),
+                _buildTimerChip('20 min', 1200, _metronomeService.timerDurationSeconds == 1200),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
           // Speed Trainer Configuration Card
           GlassCard(
             borderColor: speedTrainer ? AppColors.purple.withValues(alpha: 0.5) : AppColors.borderSubtle,
@@ -815,6 +836,38 @@ class _TunerScreenState extends State<TunerScreen> with SingleTickerProviderStat
             fontSize: 12,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimerChip(String label, int? seconds, bool isSelected) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6.0),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _metronomeService.setTimerDuration(seconds));
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.emerald : AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? AppColors.emerald : AppColors.borderSubtle,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isSelected ? Colors.black : Colors.white,
+            ),
           ),
         ),
       ),
