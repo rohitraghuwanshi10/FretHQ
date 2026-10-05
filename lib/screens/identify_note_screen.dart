@@ -9,6 +9,7 @@ import '../widgets/fretboard_widget.dart';
 import '../widgets/note_keypad_widget.dart';
 import '../widgets/glass_card.dart';
 import '../theme/app_theme.dart';
+import '../theme/responsive_layout.dart';
 import 'results_screen.dart';
 
 class IdentifyNoteScreen extends StatefulWidget {
@@ -74,8 +75,9 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
     final modeName = widget.isWeakSpotFocus
         ? 'weak_spot'
         : (widget.includeAccidentals ? 'full' : 'easy');
+    final modeKey = widget.durationSeconds <= 0 ? '${modeName}_untimed' : modeName;
 
-    await DatabaseHelper.instance.saveGameSession(_session, modeName);
+    await DatabaseHelper.instance.saveGameSession(_session, modeKey);
 
     final isHigh = await HighScoreService.saveSession(
       score: _session.correctCount,
@@ -85,6 +87,54 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
     setState(() {
       _isNewHighScore = isHigh;
     });
+  }
+
+  void _finishSession() {
+    _timer?.cancel();
+    setState(() {
+      _session.finish();
+    });
+    _onTestFinished();
+  }
+
+  void _handleExitAttempt() {
+    if (_session.totalAttempts > 0) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: isDark ? AppColors.surfaceLight : AppColors.lightSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Leave Practice Session?'),
+          content: Text(
+            'You answered ${_session.totalAttempts} questions with ${_session.correctCount} correct (${_session.accuracyPercentage.toStringAsFixed(0)}% accuracy). Save and view results?',
+            style: const TextStyle(fontSize: 13, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Discard & Exit', style: TextStyle(color: AppColors.coral)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _finishSession();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('View Results'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      Navigator.of(context).pop();
+    }
   }
 
   void _handleNoteInput(Note selectedNote) {
@@ -149,24 +199,51 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
     final timerRatio = widget.durationSeconds > 0
         ? _session.secondsRemaining / widget.durationSeconds
         : 0.0;
-    final isLowTime = _session.secondsRemaining <= 10;
+    final isLowTime = widget.durationSeconds > 0 && _session.secondsRemaining <= 10;
+    final isNoTimer = widget.durationSeconds <= 0;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close_rounded, color: Colors.white70),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _handleExitAttempt,
         ),
         title: Text(
-          'Identify Note • ${durationMins}m ${widget.isWeakSpotFocus ? "(Weak Spots)" : (widget.includeAccidentals ? "(Full)" : "(Easy)")}',
+          isNoTimer
+              ? 'Identify Note • Untimed ${widget.isWeakSpotFocus ? "(Weak Spots)" : (widget.includeAccidentals ? "(Full)" : "(Easy)")}'
+              : 'Identify Note • ${durationMins}m ${widget.isWeakSpotFocus ? "(Weak Spots)" : (widget.includeAccidentals ? "(Full)" : "(Easy)")}',
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton.icon(
+              onPressed: _finishSession,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
+                ),
+              ),
+              icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+              label: const Text(
+                'Finish',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 580),
+            constraints: BoxConstraints(
+              maxWidth: ResponsiveLayout.contentWidth(context, desktopMaxWidth: 1050),
+            ),
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 8.0),
               child: Column(
@@ -178,42 +255,85 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Timer with animated indicator
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: Stack(
-                                alignment: Alignment.center,
+                        // Timer / Stopwatch with animated indicator
+                        if (isNoTimer)
+                          Row(
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.all_inclusive_rounded,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  CircularProgressIndicator(
-                                    value: timerRatio,
-                                    strokeWidth: 3,
-                                    backgroundColor: Colors.white10,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      isLowTime ? AppColors.coral : AppColors.primary,
+                                  Text(
+                                    _formatTimerText(_session.elapsedSeconds),
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
                                     ),
                                   ),
-                                  Icon(
-                                    Icons.timer_outlined,
-                                    size: 14,
-                                    color: isLowTime ? AppColors.coral : AppColors.primary,
+                                  const Text(
+                                    'UNTIMED',
+                                    style: TextStyle(
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textMuted,
+                                      letterSpacing: 0.8,
+                                    ),
                                   ),
+                                ],
+                              ),
+                            ],
+                          )
+                        else
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    CircularProgressIndicator(
+                                      value: timerRatio,
+                                      strokeWidth: 3,
+                                      backgroundColor: Colors.white10,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        isLowTime ? AppColors.coral : AppColors.primary,
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.timer_outlined,
+                                      size: 14,
+                                      color: isLowTime ? AppColors.coral : AppColors.primary,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                _formatTimerText(_session.secondsRemaining),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: isLowTime ? AppColors.coral : Colors.white,
+                                ),
+                              ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          _formatTimerText(_session.secondsRemaining),
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: isLowTime ? AppColors.coral : Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
 
                     // Streak Badge
                     if (_session.currentStreak >= 3)
@@ -305,10 +425,15 @@ class _IdentifyNoteScreenState extends State<IdentifyNoteScreen> {
               const SizedBox(height: 14),
 
               // Note Keypad Answer Grid
-              NoteKeypadWidget(
-                onNoteSelected: _handleNoteInput,
-                isEnabled: _session.status == GameStatus.playing,
-                allowAccidentals: widget.includeAccidentals,
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: NoteKeypadWidget(
+                    onNoteSelected: _handleNoteInput,
+                    isEnabled: _session.status == GameStatus.playing,
+                    allowAccidentals: widget.includeAccidentals,
+                  ),
+                ),
               ),
 
               const SizedBox(height: 12),

@@ -10,6 +10,7 @@ import '../services/database_helper.dart';
 import '../widgets/note_keypad_widget.dart';
 import '../widgets/glass_card.dart';
 import '../theme/app_theme.dart';
+import '../theme/responsive_layout.dart';
 import 'results_screen.dart';
 
 class ScaleQuizScreen extends StatefulWidget {
@@ -76,7 +77,8 @@ class _ScaleQuizScreenState extends State<ScaleQuizScreen> {
   }
 
   Future<void> _onTestFinished() async {
-    await DatabaseHelper.instance.saveGameSession(_session, 'game3_scale_interval');
+    final modeKey = widget.durationSeconds <= 0 ? 'game3_scale_interval_untimed' : 'game3_scale_interval';
+    await DatabaseHelper.instance.saveGameSession(_session, modeKey);
 
     final isHigh = await HighScoreService.saveSession(
       score: _session.correctCount,
@@ -87,6 +89,54 @@ class _ScaleQuizScreenState extends State<ScaleQuizScreen> {
     setState(() {
       _isNewHighScore = isHigh;
     });
+  }
+
+  void _finishSession() {
+    _timer?.cancel();
+    setState(() {
+      _session.finish();
+    });
+    _onTestFinished();
+  }
+
+  void _handleExitAttempt() {
+    if (_session.totalAttempts > 0) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: isDark ? AppColors.surfaceLight : AppColors.lightSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Leave Practice Session?'),
+          content: Text(
+            'You answered ${_session.totalAttempts} questions with ${_session.correctCount} correct (${_session.accuracyPercentage.toStringAsFixed(0)}% accuracy). Save and view results?',
+            style: const TextStyle(fontSize: 13, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Discard & Exit', style: TextStyle(color: AppColors.coral)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _finishSession();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('View Results'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      Navigator.of(context).pop();
+    }
   }
 
   void _handleNoteInput(Note selectedNote) {
@@ -164,24 +214,49 @@ class _ScaleQuizScreenState extends State<ScaleQuizScreen> {
     final timerRatio = widget.durationSeconds > 0
         ? _session.secondsRemaining / widget.durationSeconds
         : 0.0;
-    final isLowTime = _session.secondsRemaining <= 10;
+    final isLowTime = widget.durationSeconds > 0 && _session.secondsRemaining <= 10;
+    final isNoTimer = widget.durationSeconds <= 0;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close_rounded, color: Colors.white70),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _handleExitAttempt,
         ),
         title: Text(
-          'Scale & Interval Quiz • ${durationMins}m',
+          isNoTimer ? 'Scale & Interval Quiz • Untimed' : 'Scale & Interval Quiz • ${durationMins}m',
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton.icon(
+              onPressed: _finishSession,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.purple,
+                backgroundColor: AppColors.purple.withValues(alpha: 0.12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: AppColors.purple.withValues(alpha: 0.3)),
+                ),
+              ),
+              icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+              label: const Text(
+                'Finish',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 580),
+            constraints: BoxConstraints(
+              maxWidth: ResponsiveLayout.contentWidth(context, desktopMaxWidth: 900),
+            ),
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 10.0),
               child: Column(
@@ -193,42 +268,85 @@ class _ScaleQuizScreenState extends State<ScaleQuizScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Timer
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: Stack(
-                            alignment: Alignment.center,
+                    // Timer / Stopwatch display
+                    if (isNoTimer)
+                      Row(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: AppColors.purple.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.all_inclusive_rounded,
+                              size: 16,
+                              color: AppColors.purple,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              CircularProgressIndicator(
-                                value: timerRatio,
-                                strokeWidth: 3,
-                                backgroundColor: Colors.white10,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  isLowTime ? AppColors.coral : AppColors.purple,
+                              Text(
+                                _formatTimerText(_session.elapsedSeconds),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
                                 ),
                               ),
-                              Icon(
-                                Icons.timer_outlined,
-                                size: 14,
-                                color: isLowTime ? AppColors.coral : AppColors.purple,
+                              const Text(
+                                'UNTIMED',
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textMuted,
+                                  letterSpacing: 0.8,
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          _formatTimerText(_session.secondsRemaining),
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: isLowTime ? AppColors.coral : Colors.white,
+                        ],
+                      )
+                    else
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                CircularProgressIndicator(
+                                  value: timerRatio,
+                                  strokeWidth: 3,
+                                  backgroundColor: Colors.white10,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    isLowTime ? AppColors.coral : AppColors.purple,
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.timer_outlined,
+                                  size: 14,
+                                  color: isLowTime ? AppColors.coral : AppColors.purple,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 10),
+                          Text(
+                            _formatTimerText(_session.secondsRemaining),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: isLowTime ? AppColors.coral : Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
 
                     // Streak
                     if (_session.currentStreak >= 3)
@@ -340,10 +458,15 @@ class _ScaleQuizScreenState extends State<ScaleQuizScreen> {
               const SizedBox(height: 20),
 
               // Note Keypad
-              NoteKeypadWidget(
-                onNoteSelected: _handleNoteInput,
-                isEnabled: _session.status == GameStatus.playing,
-                allowAccidentals: true,
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: NoteKeypadWidget(
+                    onNoteSelected: _handleNoteInput,
+                    isEnabled: _session.status == GameStatus.playing,
+                    allowAccidentals: true,
+                  ),
+                ),
               ),
 
               const SizedBox(height: 14),

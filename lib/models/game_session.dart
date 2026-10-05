@@ -21,6 +21,7 @@ class GameSession {
   final bool isWeakSpotFocus;
   final List<TargetPosition>? weakTargetPositions;
   int secondsRemaining;
+  int elapsedSeconds;
   int correctCount;
   int incorrectCount;
   int currentStreak;
@@ -40,11 +41,14 @@ class GameSession {
     this.minFret = 0,
     this.maxFret = 12,
   })  : secondsRemaining = durationSeconds,
+        elapsedSeconds = 0,
         correctCount = 0,
         incorrectCount = 0,
         currentStreak = 0,
         maxStreak = 0,
         status = GameStatus.idle;
+
+  bool get isNoTimer => durationSeconds <= 0;
 
   int get totalAttempts => correctCount + incorrectCount;
 
@@ -59,6 +63,7 @@ class GameSession {
   void start() {
     status = GameStatus.playing;
     secondsRemaining = durationSeconds;
+    elapsedSeconds = 0;
     correctCount = 0;
     incorrectCount = 0;
     currentStreak = 0;
@@ -142,17 +147,25 @@ class GameSession {
 
   void tick() {
     if (status == GameStatus.playing) {
-      secondsRemaining--;
-      if (secondsRemaining <= 0) {
-        secondsRemaining = 0;
-        status = GameStatus.finished;
+      elapsedSeconds++;
+      if (!isNoTimer) {
+        secondsRemaining--;
+        if (secondsRemaining <= 0) {
+          secondsRemaining = 0;
+          status = GameStatus.finished;
+        }
       }
     }
+  }
+
+  void finish() {
+    status = GameStatus.finished;
   }
 
   void reset() {
     status = GameStatus.idle;
     secondsRemaining = durationSeconds;
+    elapsedSeconds = 0;
     correctCount = 0;
     incorrectCount = 0;
     currentStreak = 0;

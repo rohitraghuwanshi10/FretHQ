@@ -127,5 +127,40 @@ void main() {
       expect(stat.accuracy, greaterThanOrEqualTo(0.0));
       expect(stat.accuracy, lessThanOrEqualTo(100.0));
     });
+
+    test('Untimed GameSession (durationSeconds = 0) increments elapsedSeconds without auto-finishing', () async {
+      final session = GameSession(durationSeconds: 0);
+      expect(session.isNoTimer, isTrue);
+
+      session.start();
+      expect(session.status, equals(GameStatus.playing));
+      expect(session.elapsedSeconds, equals(0));
+
+      // Simulate 120 ticks (2 minutes of free practice)
+      for (int i = 0; i < 120; i++) {
+        session.tick();
+      }
+
+      // Should still be playing
+      expect(session.status, equals(GameStatus.playing));
+      expect(session.elapsedSeconds, equals(120));
+
+      // Answer questions
+      final target = session.currentPosition!.targetNote;
+      session.answer(target);
+      expect(session.correctCount, equals(1));
+
+      // User manually finishes
+      session.finish();
+      expect(session.status, equals(GameStatus.finished));
+
+      // Save to database
+      final sessionId = await DatabaseHelper.instance.saveGameSession(session, 'game1_untimed');
+      expect(sessionId, greaterThan(0));
+
+      final history = await DatabaseHelper.instance.getSessionHistory(limit: 1);
+      expect(history.first.durationSec, equals(120));
+      expect(history.first.score, equals(1));
+    });
   });
 }

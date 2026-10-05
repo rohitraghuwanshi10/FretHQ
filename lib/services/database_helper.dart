@@ -1,7 +1,6 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../models/game_session.dart';
 
 class WeakPosition {
@@ -105,6 +104,13 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String filePath) async {
+    if (defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.windows) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+
     final dbPath = await getDatabasesPath();
     final path = p.join(dbPath, filePath);
 
@@ -154,7 +160,7 @@ class DatabaseHelper {
       final sessionId = await txn.insert('game_sessions', {
         'timestamp': nowIso,
         'mode': modeName,
-        'duration_sec': session.durationSeconds,
+        'duration_sec': session.isNoTimer ? session.elapsedSeconds : session.durationSeconds,
         'score': session.correctCount,
         'total_attempts': session.totalAttempts,
         'accuracy': session.accuracyPercentage,

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:frethq/models/game_session.dart';
-import 'package:frethq/models/note.dart';
 import 'package:frethq/screens/find_fret_screen.dart';
 import 'package:frethq/widgets/interactive_fretboard_widget.dart';
 

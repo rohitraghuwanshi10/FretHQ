@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
+import '../theme/responsive_layout.dart';
+import '../services/theme_service.dart';
 import 'home_screen.dart';
 import 'tuner_screen.dart';
 import 'analytics_screen.dart';
@@ -43,6 +45,32 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = ResponsiveLayout.isDesktop(context);
+
+    if (isDesktop) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Row(
+          children: [
+            _buildDesktopSidebar(),
+            VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.borderSubtle
+                  : AppColors.lightBorderSubtle,
+            ),
+            Expanded(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _screens,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: IndexedStack(
@@ -53,6 +81,199 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  // ==========================================
+  // --- DESKTOP SIDEBAR NAVIGATION ---
+  // ==========================================
+  Widget _buildDesktopSidebar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.textPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.textSecondary : AppColors.lightTextSecondary;
+    final sidebarBg = isDark ? AppColors.surface : AppColors.lightSurface;
+
+    return Container(
+      width: 240,
+      color: sidebarBg,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header / Logo
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+                  ),
+                  child: const Icon(Icons.music_note_rounded, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'FRET HQ',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: textPrimary,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      Text(
+                        'Mastery & Practice',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          // Navigation Links
+          _buildSidebarNavItem(0, Icons.fitness_center_rounded, 'Train & Practice', AppColors.primary),
+          const SizedBox(height: 6),
+          _buildSidebarNavItem(1, Icons.tune_rounded, 'Tools & Tuner', AppColors.cyan),
+          const SizedBox(height: 6),
+          _buildSidebarNavItem(2, Icons.insights_rounded, 'Analytics', AppColors.purple),
+          const SizedBox(height: 6),
+          _buildSidebarNavItem(3, Icons.settings_rounded, 'Settings', AppColors.emerald),
+
+          const Spacer(),
+
+          // Theme Toggle & App Info at Bottom
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: ThemeService.themeModeNotifier,
+            builder: (context, mode, _) {
+              final isCurrentDark = Theme.of(context).brightness == Brightness.dark;
+              return InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  ThemeService.setThemeMode(isCurrentDark ? ThemeMode.light : ThemeMode.dark);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.surfaceLight : AppColors.lightSurfaceLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? AppColors.borderSubtle : AppColors.lightBorderSubtle,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isCurrentDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                        size: 18,
+                        color: isCurrentDark ? AppColors.gold : AppColors.purple,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          isCurrentDark ? 'Light Theme' : 'Dark Theme',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Text(
+              'v1.0.0 • Desktop Edition',
+              style: TextStyle(fontSize: 10, color: textSecondary.withValues(alpha: 0.7)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarNavItem(int index, IconData icon, String label, Color activeColor) {
+    final isSelected = _currentIndex == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.textPrimary : AppColors.lightTextPrimary;
+    final textMuted = isDark ? AppColors.textMuted : AppColors.lightTextSecondary;
+
+    return InkWell(
+      onTap: () => _onTabTapped(index),
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? activeColor.withValues(alpha: 0.35) : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? activeColor : textMuted,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? textPrimary : textMuted,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 13,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ),
+            if (isSelected)
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: activeColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.6),
+                      blurRadius: 4,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // --- MOBILE FLOATING BOTTOM BAR ---
+  // ==========================================
   Widget _buildFloatingNavBar() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final navBg = isDark ? AppColors.surfaceGlass : AppColors.lightSurfaceGlass;

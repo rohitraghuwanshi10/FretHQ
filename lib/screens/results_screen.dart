@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/game_session.dart';
 import '../theme/app_theme.dart';
+import '../theme/responsive_layout.dart';
 import '../widgets/glass_card.dart';
 
 class ResultsScreen extends StatefulWidget {
@@ -52,6 +53,15 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
     super.dispose();
   }
 
+  String _formatDuration(int seconds) {
+    if (seconds >= 60) {
+      final mins = seconds ~/ 60;
+      final secs = seconds % 60;
+      return secs > 0 ? '${mins}m ${secs}s' : '${mins}m';
+    }
+    return '${seconds}s';
+  }
+
   @override
   Widget build(BuildContext context) {
     final accuracy = widget.session.accuracyPercentage;
@@ -64,7 +74,9 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 580),
+            constraints: BoxConstraints(
+              maxWidth: ResponsiveLayout.contentWidth(context, desktopMaxWidth: 800),
+            ),
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
               child: Column(
@@ -82,9 +94,9 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                   const SizedBox(height: 14),
                 ],
 
-                const Text(
-                  'Time\'s Up!',
-                  style: TextStyle(
+                Text(
+                  widget.session.isNoTimer ? 'Practice Complete!' : 'Time\'s Up!',
+                  style: const TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
@@ -125,7 +137,9 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'CORRECT NOTES IN ${widget.session.durationSeconds}s',
+                        widget.session.isNoTimer
+                            ? 'CORRECT NOTES • UNTIMED (${_formatDuration(widget.session.elapsedSeconds)})'
+                            : 'CORRECT NOTES IN ${widget.session.durationSeconds}s',
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../models/note.dart';
 import '../services/database_helper.dart';
 import '../theme/app_theme.dart';
+import 'realistic_fretboard_painter.dart';
 
 class FretboardHeatmapWidget extends StatefulWidget {
   final Map<String, FretHeatmapStat> heatmapStats;
@@ -26,10 +27,10 @@ class _FretboardHeatmapWidgetState extends State<FretboardHeatmapWidget> {
     final Size size = box.size;
     final Offset localPos = details.localPosition;
 
-    const leftMargin = 46.0;
-    const rightMargin = 16.0;
-    const topMargin = 26.0;
-    const bottomMargin = 26.0;
+    const leftMargin = RealisticFretboardRenderer.defaultLeftMargin;
+    const rightMargin = RealisticFretboardRenderer.defaultRightMargin;
+    const topMargin = RealisticFretboardRenderer.defaultTopMargin;
+    const bottomMargin = RealisticFretboardRenderer.defaultBottomMargin;
 
     final fretboardWidth = size.width - leftMargin - rightMargin;
     final fretboardHeight = size.height - topMargin - bottomMargin;
@@ -43,8 +44,8 @@ class _FretboardHeatmapWidgetState extends State<FretboardHeatmapWidget> {
     final stringNumber = stringIdx + 1; // 1 to 6
 
     int fretNumber;
-    if (localPos.dx < leftMargin) {
-      fretNumber = 0; // Open string
+    if (localPos.dx < leftMargin - 4) {
+      fretNumber = 0; // Open string behind or on bone nut
     } else {
       fretNumber = (((localPos.dx - leftMargin) / fretSpacing).floor() + 1).clamp(1, 12);
     }
@@ -211,14 +212,19 @@ class _FretboardHeatmapWidgetState extends State<FretboardHeatmapWidget> {
         // Heatmap Fretboard
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF141113),
+            color: const Color(0xFF140F0D),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.purple.withValues(alpha: 0.35), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
-                blurRadius: 16,
+                color: Colors.black.withValues(alpha: 0.7),
+                blurRadius: 18,
                 offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: AppColors.purple.withValues(alpha: 0.08),
+                blurRadius: 14,
+                spreadRadius: 1,
               ),
             ],
           ),
@@ -281,146 +287,106 @@ class _HeatmapFretboardPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const leftMargin = 46.0;
-    const rightMargin = 16.0;
-    const topMargin = 26.0;
-    const bottomMargin = 26.0;
+    const leftMargin = RealisticFretboardRenderer.defaultLeftMargin;
+    const rightMargin = RealisticFretboardRenderer.defaultRightMargin;
+    const topMargin = RealisticFretboardRenderer.defaultTopMargin;
+    const bottomMargin = RealisticFretboardRenderer.defaultBottomMargin;
 
     final fretboardWidth = size.width - leftMargin - rightMargin;
     final fretboardHeight = size.height - topMargin - bottomMargin;
-
-    final neckRect = Rect.fromLTWH(leftMargin, topMargin, fretboardWidth, fretboardHeight);
-
-    // Neck background
-    final neckPaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFF241C1A), Color(0xFF191311), Color(0xFF120E0D)],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(neckRect);
-    canvas.drawRect(neckRect, neckPaint);
-
-    // Binding
-    final bindingPaint = Paint()
-      ..color = const Color(0xFFE5DECF)
-      ..strokeWidth = 2.0;
-    canvas.drawLine(Offset(leftMargin, topMargin), Offset(leftMargin + fretboardWidth, topMargin), bindingPaint);
-    canvas.drawLine(
-      Offset(leftMargin, topMargin + fretboardHeight),
-      Offset(leftMargin + fretboardWidth, topMargin + fretboardHeight),
-      bindingPaint,
-    );
+    if (fretboardWidth <= 0 || fretboardHeight <= 0) return;
 
     const maxFret = 12;
-    final fretSpacing = fretboardWidth / maxFret;
 
-    // Bone Nut
-    final nutRect = Rect.fromLTWH(leftMargin - 6, topMargin - 1, 6, fretboardHeight + 2);
-    final nutPaint = Paint()..color = const Color(0xFFE0D8C3);
-    canvas.drawRRect(RRect.fromRectAndRadius(nutRect, const Radius.circular(2)), nutPaint);
+    // 1. Draw photorealistic base fretboard
+    RealisticFretboardRenderer.drawFretboardBase(
+      canvas: canvas,
+      size: size,
+      maxFret: maxFret,
+      leftMargin: leftMargin,
+      rightMargin: rightMargin,
+      topMargin: topMargin,
+      bottomMargin: bottomMargin,
+      accentColor: AppColors.purple,
+    );
 
-    // Frets
-    final fretTextPainter = TextPainter(textDirection: TextDirection.ltr);
-    for (int f = 0; f <= maxFret; f++) {
-      final fretX = leftMargin + f * fretSpacing;
-      if (f > 0) {
-        canvas.drawLine(
-          Offset(fretX, topMargin),
-          Offset(fretX, topMargin + fretboardHeight),
-          Paint()
-            ..color = const Color(0xFF8E95A0)
-            ..strokeWidth = 1.5,
-        );
-      }
-
-      fretTextPainter.text = TextSpan(
-        text: '$f',
-        style: TextStyle(
-          color: (f == 3 || f == 5 || f == 7 || f == 9 || f == 12) ? AppColors.purple : Colors.grey.shade400,
-          fontSize: 9,
-          fontWeight: FontWeight.w800,
-        ),
-      );
-      fretTextPainter.layout();
-      final labelX = f == 0 ? leftMargin - 16 : leftMargin + (f - 0.5) * fretSpacing - fretTextPainter.width / 2;
-      fretTextPainter.paint(
-        canvas,
-        Offset(labelX, topMargin + fretboardHeight + 6),
-      );
-    }
-
-    // 6 Strings
-    const numStrings = 6;
-    final stringSpacing = fretboardHeight / (numStrings - 1);
-    final stringNames = ['E', 'B', 'G', 'D', 'A', 'E'];
-    final stringGauges = [1.0, 1.4, 1.8, 2.4, 3.0, 3.8];
-
-    for (int i = 0; i < numStrings; i++) {
-      final stringY = topMargin + i * stringSpacing;
-      final gauge = stringGauges[i];
-
-      final stringPaint = Paint()
-        ..color = const Color(0xFF8B92A0)
-        ..strokeWidth = gauge;
-      canvas.drawLine(
-        Offset(leftMargin - 6, stringY),
-        Offset(leftMargin + fretboardWidth, stringY),
-        stringPaint,
-      );
-
-      final labelPainter = TextPainter(
-        text: TextSpan(
-          text: stringNames[i],
-          style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      labelPainter.layout();
-      labelPainter.paint(
-        canvas,
-        Offset(12, stringY - labelPainter.height / 2),
-      );
-    }
-
-    // Draw Heatmap Mastery Badges for all 6 strings x 13 frets (0 to 12)
+    // 2. Draw Heatmap Mastery Badges for all 6 strings x 13 frets (0 to 12)
     final notePainter = TextPainter(textDirection: TextDirection.ltr);
 
     for (int s = 1; s <= 6; s++) {
-      final strIdx = s - 1;
-      final y = topMargin + strIdx * stringSpacing;
-
       for (int f = 0; f <= maxFret; f++) {
-        final x = f == 0 ? leftMargin - 10 : leftMargin + (f - 0.5) * fretSpacing;
+        final posOffset = RealisticFretboardRenderer.getPositionOffset(
+          stringNumber: s,
+          fretNumber: f,
+          fretboardWidth: fretboardWidth,
+          fretboardHeight: fretboardHeight,
+          maxFret: maxFret,
+          leftMargin: leftMargin,
+          topMargin: topMargin,
+        );
+        final x = posOffset.dx;
+        final y = posOffset.dy;
+
         final key = '$s-$f';
         final stat = heatmapStats[key];
         final note = Note.getNoteForPosition(s, f);
 
         Color badgeColor;
         Color textColor;
+        bool isTested = false;
+
         if (stat == null || stat.totalAttempts == 0) {
-          badgeColor = const Color(0xFF262334);
-          textColor = Colors.white30;
+          badgeColor = const Color(0xFF221816);
+          textColor = Colors.white38;
         } else if (stat.accuracy >= 80) {
           badgeColor = AppColors.emerald;
           textColor = Colors.black;
+          isTested = true;
         } else if (stat.accuracy >= 50) {
           badgeColor = AppColors.gold;
           textColor = Colors.black;
+          isTested = true;
         } else {
           badgeColor = AppColors.coral;
           textColor = Colors.white;
+          isTested = true;
         }
 
-        // Draw node circle
+        // Soft ambient glow for tested mastery badges
+        if (isTested) {
+          final glowPaint = Paint()
+            ..color = badgeColor.withValues(alpha: 0.35)
+            ..style = PaintingStyle.fill
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+          canvas.drawCircle(Offset(x, y), 11, glowPaint);
+        }
+
+        // Node circle
         final nodePaint = Paint()
           ..color = badgeColor
           ..style = PaintingStyle.fill;
         canvas.drawCircle(Offset(x, y), 8.5, nodePaint);
 
+        // Subtle dark or metallic border for untested positions
+        if (!isTested) {
+          final borderPaint = Paint()
+            ..color = Colors.white.withValues(alpha: 0.15)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 0.8;
+          canvas.drawCircle(Offset(x, y), 8.5, borderPaint);
+        }
+
         // Highlight border if this is the inspected position
         if (inspectedPosition != null &&
             inspectedPosition!.stringNumber == s &&
             inspectedPosition!.fretNumber == f) {
+          final inspectGlow = Paint()
+            ..color = Colors.white.withValues(alpha: 0.5)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.0
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+          canvas.drawCircle(Offset(x, y), 12.0, inspectGlow);
+
           final inspectPaint = Paint()
             ..color = Colors.white
             ..style = PaintingStyle.stroke

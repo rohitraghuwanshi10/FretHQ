@@ -40,6 +40,7 @@ dependencies:
   pitch_detector_dart: ^0.0.7
   permission_handler: ^11.3.1
   audioplayers: ^6.8.1
+  sqflite_common_ffi: ^2.4.2
 
 dependency_overrides:
   record_platform_interface: 1.1.0
@@ -47,7 +48,6 @@ dependency_overrides:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  sqflite_common_ffi: ^2.3.4
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
